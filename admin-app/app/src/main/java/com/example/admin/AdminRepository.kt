@@ -2,6 +2,8 @@ package com.example.admin
 
 import android.util.Log
 import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,12 +48,14 @@ class AdminRepository {
                             description = doc.getString("description") ?: "",
                             sellerName = doc.getString("sellerName") ?: "",
                             sellerPhone = doc.getString("sellerPhone") ?: "",
+                            sellerId = doc.getString("sellerId") ?: "",
                             wilaya = doc.getString("wilayaNameAr") ?: doc.getString("wilayaCode") ?: "",
                             commune = doc.getString("commune") ?: "",
                             priceDzd = doc.getLong("priceDzd") ?: 0L,
                             status = doc.getString("status") ?: "PAYMENT_PENDING",
                             category = doc.getString("category") ?: "OTHER",
-                            createdAt = doc.getString("createdAt") ?: "غير محدد"
+                            createdAt = doc.getString("createdAt") ?: "غير محدد",
+                            rejectionReason = doc.getString("rejectionReason") ?: ""
                         )
                     } ?: emptyList()
                 }
@@ -81,16 +85,42 @@ class AdminRepository {
         _connectionError.value = "تعذر الاتصال بقاعدة البيانات ($source): ${error.localizedMessage ?: "تحقق من Firebase والصلاحيات"}"
     }
 
-    fun approve(id: String) = updateStatus(id, "PUBLISHED")
-    fun reject(id: String) = updateStatus(id, "REJECTED")
+    fun approve(listing: AdminListing) = updateStatus(listing, "PUBLISHED", "تم نشر الإعلان")
+
+    fun reject(listing: AdminListing, reason: String) {
+        val cleanReason = reason.trim()
+        val updates = mapOf("status" to "REJECTED", "rejectionReason" to cleanReason)
+        db?.collection("listings")?.document(listing.id)?.update(updates)
+            ?.addOnSuccessListener { writeAudit("REJECT_LISTING", listing.id, "رفض الإعلان: $cleanReason") }
+            ?.addOnFailureListener { reportFirestoreError("رفض الإعلان", it) }
+    }
+
     fun setUserBlocked(id: String, blocked: Boolean) {
-        db?.collection("users")?.document(id)?.update("isBlocked", blocked)
+        db?.collection("users")?.document(id)?.update("isBlocked", blocked, "updatedAt", FieldValue.serverTimestamp())
+            ?.addOnSuccessListener { writeAudit(if (blocked) "BLOCK_USER" else "UNBLOCK_USER", id, if (blocked) "حظر المستخدم" else "رفع حظر المستخدم") }
             ?.addOnFailureListener { reportFirestoreError("تحديث حظر المستخدم", it) }
     }
-    private fun updateStatus(id: String, status: String) {
-        db?.collection("listings")?.document(id)?.update("status", status)
+
+    private fun updateStatus(listing: AdminListing, status: String, description: String) {
+        db?.collection("listings")?.document(listing.id)?.update("status", status)
+            ?.addOnSuccessListener { writeAudit(if (status == "PUBLISHED") "PUBLISH_LISTING" else "UPDATE_LISTING", listing.id, description) }
             ?.addOnFailureListener { reportFirestoreError("تحديث حالة الإعلان", it) }
     }
+
+    private fun writeAudit(action: String, targetId: String, description: String) {
+        val admin = FirebaseAuth.getInstance().currentUser
+        db?.collection("auditLogs")?.add(
+            mapOf(
+                "action" to action,
+                "targetId" to targetId,
+                "description" to description,
+                "adminUid" to (admin?.uid ?: "unknown"),
+                "adminEmail" to (admin?.email ?: "unknown"),
+                "createdAt" to FieldValue.serverTimestamp()
+            )
+        )?.addOnFailureListener { Log.e(TAG, "Could not write audit log", it) }
+    }
+
     companion object { private const val TAG = "AdminRepository" }
 }
 
@@ -100,12 +130,14 @@ data class AdminListing(
     val description: String,
     val sellerName: String,
     val sellerPhone: String,
+    val sellerId: String,
     val wilaya: String,
     val commune: String,
     val priceDzd: Long,
     val status: String,
     val category: String,
-    val createdAt: String
+    val createdAt: String,
+    val rejectionReason: String
 )
 
 data class AdminUser(

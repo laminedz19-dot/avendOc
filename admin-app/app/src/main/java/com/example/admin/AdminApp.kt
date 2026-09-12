@@ -53,7 +53,7 @@ import java.text.NumberFormat
 import java.util.Locale
 
 @Composable
-fun AdminApp() {
+fun AdminApp(onLogout: () -> Unit) {
     val repository = remember { AdminRepository() }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     LaunchedEffect(Unit) {
@@ -67,6 +67,7 @@ fun AdminApp() {
     val pending = listings.filter { it.status == "PAYMENT_PENDING" }
     val active = listings.filter { it.status == "PUBLISHED" }
     var rejectId by remember { mutableStateOf<String?>(null) }
+    var selectedListing by remember { mutableStateOf<AdminListing?>(null) }
     var chartMode by remember { mutableStateOf(ChartMode.BY_DATE) }
     var showUsers by remember { mutableStateOf(false) }
 
@@ -101,6 +102,7 @@ fun AdminApp() {
                 Text("${pending.size} إعلان ينتظر الموافقة", fontSize = 13.sp, color = Color.Gray)
             }
             TextButton(onClick = { showUsers = true }) { Text("إدارة المستخدمين") }
+            TextButton(onClick = onLogout) { Text("تسجيل الخروج") }
         }
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -142,9 +144,9 @@ fun AdminApp() {
         if (pending.isEmpty()) {
             Text("لا توجد إعلانات معلقة حاليًا.", color = Color.Gray)
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(pending, key = { it.id }) { item ->
-                    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))) {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(pending, key = { it.id }) { item ->
+                    Card(onClick = { selectedListing = item }, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))) {
                         Column(Modifier.padding(14.dp)) {
                             Text(item.title, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                             Text(formatDzd(item.priceDzd), color = Color(0xFF087F5B), fontWeight = FontWeight.Black)
@@ -154,11 +156,11 @@ fun AdminApp() {
                             Text(item.description, fontSize = 13.sp, maxLines = 3)
                             Spacer(Modifier.height(12.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = { repository.approve(item.id) }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF087F5B))) {
+                                Button(onClick = { repository.approve(item) }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF087F5B))) {
                                     Icon(Icons.Default.Check, contentDescription = null)
                                     Text("موافقة ونشر")
                                 }
-                                OutlinedButton(onClick = { rejectId = item.id }, modifier = Modifier.weight(1f)) {
+                                OutlinedButton(onClick = { selectedListing = item }, modifier = Modifier.weight(1f)) {
                                     Icon(Icons.Default.Close, contentDescription = null)
                                     Text("رفض")
                                 }
@@ -170,13 +172,12 @@ fun AdminApp() {
         }
     }
 
-    rejectId?.let { id ->
-        AlertDialog(
-            onDismissRequest = { rejectId = null },
-            title = { Text("رفض الإعلان؟") },
-            text = { Text("سيبقى الإعلان مخفيًا من السوق العام.") },
-            confirmButton = { TextButton(onClick = { repository.reject(id); rejectId = null }) { Text("تأكيد الرفض") } },
-            dismissButton = { TextButton(onClick = { rejectId = null }) { Text("إلغاء") } }
+    selectedListing?.let { listing ->
+        ListingDetailsDialog(
+            listing = listing,
+            onDismiss = { selectedListing = null },
+            onApprove = { repository.approve(listing); selectedListing = null },
+            onReject = { reason -> repository.reject(listing, reason); selectedListing = null }
         )
     }
 }
