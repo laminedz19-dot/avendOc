@@ -44,6 +44,9 @@ jobs:
             echo "$GOOGLE_SERVICES_JSON" > admin-app/app/google-services.json
           elif [ -f "admin-app/app/google-services.json" ]; then
             echo "Using committed admin app google-services.json."
+          elif [ -f "app/google-services.json" ]; then
+            cp app/google-services.json admin-app/app/google-services.json
+            echo "Using the shared Firebase configuration; Gradle will select com.avendoc.admin."
           else
             echo "No google-services.json provided for admin app."
             exit 1
@@ -51,11 +54,11 @@ jobs:
 
       - name: Validate Firebase configuration
         working-directory: admin-app
-        run: ./gradlew :app:validateGoogleServices --stacktrace
+        run: ./gradlew :app:validateGoogleServices --stacktrace --no-configuration-cache
 
       - name: Build Admin Debug APK
         working-directory: admin-app
-        run: ./gradlew assembleDebug -x validateSigningDebug --stacktrace
+        run: ./gradlew assembleDebug -x validateSigningDebug --stacktrace --no-configuration-cache
 
       - name: Upload Admin Debug APK
         uses: actions/upload-artifact@v4
