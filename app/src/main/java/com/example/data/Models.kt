@@ -85,7 +85,6 @@ data class ListingItem(
     val paymentProofReceiptUrl: String = "",
     val images: List<String> = emptyList(),
     val deliveryOption: DeliveryOption = DeliveryOption.ALL_69_WILAYAS,
-    val isDemoAccount: Boolean = false,
     val createdAt: String = "اليوم",
     val viewsCount: Int = 12,
     val offersCount: Int = 0,
@@ -165,7 +164,7 @@ data class UserAccount(
 
 enum class UserRole(val displayNameAr: String, val displayNameFr: String) {
     BUYER("كريم (مشتري)", "Karim (Acheteur)"),
-    SELLER("أمين (بائع)", "Amine (Vendeur)")
+    SELLER("أمين (بائع)", "Amine (Vendeur)"),
 }
 
 enum class AppLanguage {

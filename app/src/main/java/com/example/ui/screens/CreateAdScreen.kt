@@ -422,7 +422,7 @@ fun CreateAdScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (isArabic) "نشر الإعلان مباشرة 🚀" else "Publier l'annonce 🚀",
+                            text = if (isArabic) "إرسال للمراجعة الإدارية" else "Envoyer pour validation",
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -1244,7 +1244,7 @@ fun Step9Review(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = if (isArabic) "الخطوة التالية (10): تفاصيل دفع رسوم النشر (300 دج) وإمكانية إرفاق صورة الوصل لتأكيد ونشر الإعلان فوراً."
+                        text = if (isArabic) "الخطوة التالية (10): تفاصيل دفع رسوم النشر (300 دج) وإمكانية إرفاق صورة الوصل لإرسال الإعلان إلى مراجعة الإدارة."
                         else "Étape suivante (10) : Frais de publication 300 DZD et téléversement du reçu.",
                         fontSize = 12.sp,
                         color = OnAmberContainer,
@@ -1613,8 +1613,8 @@ fun Step10PaymentAndVerification(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isArabic) "يمكنك إرفاق صورة الوصل الآن أو المتابعة مباشرة لنشر الإعلان في السوق."
-                            else "Vous pouvez joindre le reçu maintenant ou publier l'annonce directement.",
+                            text = if (isArabic) "يمكنك إرفاق صورة الوصل الآن أو إرسال الإعلان للمراجعة؛ لن يظهر في السوق قبل موافقة الإدارة."
+                            else "Vous pouvez joindre le reçu maintenant ou envoyer l'annonce pour validation.",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1624,7 +1624,7 @@ fun Step10PaymentAndVerification(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Submit ad button (Always active and enables publishing directly)
+            // Submit ad button: submission is queued for admin review.
             Button(
                 onClick = onSubmit,
                 modifier = Modifier
@@ -1640,7 +1640,7 @@ fun Step10PaymentAndVerification(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (isArabic) "تأكيد ونشر الإعلان في السوق الآن 🚀" else "Confirmer et publier l'annonce 🚀",
+                    text = if (isArabic) "إرسال الإعلان وانتظار موافقة الإدارة" else "Envoyer et attendre la validation",
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )

@@ -62,7 +62,6 @@ data class CreateAdFormState(
     val paymentReference: String = "",
     val paymentDate: String = "",
     val uploadedReceiptUri: String? = null,
-    val isDemoAccount: Boolean = false,
     val isSubmitting: Boolean = false,
     val submittedAdId: String? = null
 )
@@ -181,8 +180,9 @@ class MarketplaceViewModel(
             val matchesNegotiable = !filters.onlyNegotiable || item.isNegotiable
             val matchesPrice = filters.maxPriceDzd == null || item.priceDzd <= filters.maxPriceDzd
 
-            // In general marketplace, show PUBLISHED items
-            matchesSearch && matchesCategory && matchesWilaya && matchesCondition && matchesNegotiable && matchesPrice
+            // Only admin-approved ads are visible in the public marketplace.
+            item.status == AdStatus.PUBLISHED &&
+                    matchesSearch && matchesCategory && matchesWilaya && matchesCondition && matchesNegotiable && matchesPrice
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -280,8 +280,7 @@ class MarketplaceViewModel(
             images = form.selectedImages,
             deliveryOption = form.deliveryOption,
             paymentRef = form.paymentReference.ifBlank { "CCP-REC-${System.currentTimeMillis() % 100000}" },
-            paymentDate = form.paymentDate.ifBlank { "2026-09-12" },
-            isDemoAccount = form.isDemoAccount
+            paymentDate = form.paymentDate.ifBlank { "2026-09-12" }
         )
 
         _createAdForm.update {

@@ -84,7 +84,6 @@ class FirebaseFirestoreService {
                                     paymentReference = doc.getString("paymentReference") ?: "",
                                     paymentDate = doc.getString("paymentDate") ?: "",
                                     paymentProofReceiptUrl = doc.getString("paymentProofReceiptUrl") ?: "",
-                                    isDemoAccount = doc.getBoolean("isDemoAccount") ?: false,
                                     createdAt = doc.getString("createdAt") ?: "الآن",
                                     viewsCount = (doc.getLong("viewsCount") ?: 0L).toInt(),
                                     offersCount = (doc.getLong("offersCount") ?: 0L).toInt(),
@@ -128,7 +127,6 @@ class FirebaseFirestoreService {
                     "status" to item.status.name,
                     "paymentReference" to item.paymentReference,
                     "paymentDate" to item.paymentDate,
-                    "isDemoAccount" to item.isDemoAccount,
                     "createdAt" to item.createdAt,
                     "viewsCount" to item.viewsCount,
                     "offersCount" to item.offersCount

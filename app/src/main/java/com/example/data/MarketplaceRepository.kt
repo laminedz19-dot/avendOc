@@ -84,13 +84,13 @@ class MarketplaceRepository {
         deliveryOption: DeliveryOption = DeliveryOption.ALL_69_WILAYAS,
         paymentRef: String = "",
         paymentDate: String = "",
-        isDemoAccount: Boolean = false
     ): ListingItem {
         val wilaya = WilayasData.findWilayaByCode(wilayaCode)
         val wilayaNameAr = wilaya?.nameAr ?: "الجزائر"
         val wilayaNameFr = wilaya?.nameFr ?: "Alger"
 
-        val initialStatus = AdStatus.PUBLISHED
+        // Every new ad is hidden from the marketplace until an admin approves it.
+        val initialStatus = AdStatus.PAYMENT_PENDING
 
         val newAd = ListingItem(
             title = title,
@@ -111,7 +111,6 @@ class MarketplaceRepository {
             status = initialStatus,
             paymentReference = paymentRef,
             paymentDate = paymentDate,
-            isDemoAccount = isDemoAccount,
             createdAt = "الآن"
         )
 
