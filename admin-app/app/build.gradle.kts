@@ -105,7 +105,9 @@ val validateGoogleServices by tasks.registering {
       "Firebase config package mismatch. Expected: $expectedFirebasePackage. " +
         "No matching client[].client_info.android_client_info.package_name found."
     }
-    val mobileSdkAppId = matchingClient["mobilesdk_app_id"] as? String
+    val matchingClientInfo = matchingClient["client_info"] as? Map<*, *>
+    val mobileSdkAppId = (matchingClient["mobilesdk_app_id"] as? String)
+      ?: (matchingClientInfo?.get("mobilesdk_app_id") as? String)
     check(!mobileSdkAppId.isNullOrBlank()) {
       "Firebase configuration is missing client[].mobilesdk_app_id."
     }
