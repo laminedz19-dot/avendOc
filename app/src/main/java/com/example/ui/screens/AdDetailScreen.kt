@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Verified
@@ -58,14 +59,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.data.AdStatus
 import com.example.data.AppLanguage
 import com.example.data.ChatMessage
+import com.example.data.DeliveryOption
 import com.example.data.ListingItem
 import com.example.ui.components.AdStatusBadge
 import com.example.ui.components.NegotiableBadge
@@ -148,41 +152,115 @@ fun AdDetailScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Visual Hero Card
+            // Visual Hero Card / Photos Gallery
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = EmeraldContainer)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
+                if (listing.images.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = getCategoryIcon(listing.category),
-                                contentDescription = null,
-                                tint = OnEmeraldContainer,
-                                modifier = Modifier.size(48.dp)
+                        // Main Photo
+                        var selectedPhotoIndex by remember { mutableStateOf(0) }
+                        val currentPhoto = listing.images.getOrElse(selectedPhotoIndex) { listing.images.first() }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(240.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                        ) {
+                            AsyncImage(
+                                model = currentPhoto,
+                                contentDescription = listing.title,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = if (isArabic) listing.category.titleAr else listing.category.titleFr,
-                                fontWeight = FontWeight.Bold,
-                                color = OnEmeraldContainer,
-                                fontSize = 14.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "${listing.commune} • ${if (isArabic) listing.wilayaNameAr else listing.wilayaNameFr}",
-                                color = EmeraldPrimary,
-                                fontSize = 12.sp
-                            )
+
+                            // Image count pill
+                            Surface(
+                                color = Color.Black.copy(alpha = 0.6f),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(10.dp)
+                            ) {
+                                Text(
+                                    text = "${selectedPhotoIndex + 1} / ${listing.images.size}",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+
+                        // Thumbnail strip if more than 1 image
+                        if (listing.images.size > 1) {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                items(listing.images.size) { index ->
+                                    val isCurrent = index == selectedPhotoIndex
+                                    Box(
+                                        modifier = Modifier
+                                            .size(60.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .clickable { selectedPhotoIndex = index }
+                                            .then(
+                                                if (isCurrent) Modifier.background(EmeraldPrimary)
+                                                else Modifier
+                                            )
+                                            .padding(if (isCurrent) 2.dp else 0.dp)
+                                    ) {
+                                        AsyncImage(
+                                            model = listing.images[index],
+                                            contentDescription = "Thumbnail $index",
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(RoundedCornerShape(8.dp)),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = EmeraldContainer)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = getCategoryIcon(listing.category),
+                                    contentDescription = null,
+                                    tint = OnEmeraldContainer,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = if (isArabic) listing.category.titleAr else listing.category.titleFr,
+                                    fontWeight = FontWeight.Bold,
+                                    color = OnEmeraldContainer,
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "${listing.commune} • ${if (isArabic) listing.wilayaNameAr else listing.wilayaNameFr}",
+                                    color = EmeraldPrimary,
+                                    fontSize = 12.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -238,25 +316,55 @@ fun AdDetailScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(8.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(8.dp)
                             ) {
-                                Text(
-                                    text = if (isArabic) "الحالة: " else "État: ",
-                                    fontSize = 11.sp,
-                                    color = SlateMuted
-                                )
-                                Text(
-                                    text = if (isArabic) listing.condition.labelAr else listing.condition.labelFr,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (isArabic) "الحالة: " else "État: ",
+                                        fontSize = 11.sp,
+                                        color = SlateMuted
+                                    )
+                                    Text(
+                                        text = if (isArabic) listing.condition.labelAr else listing.condition.labelFr,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                color = EmeraldContainer,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocalShipping,
+                                        contentDescription = null,
+                                        tint = OnEmeraldContainer,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = if (isArabic) listing.deliveryOption.labelAr else listing.deliveryOption.labelFr,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = OnEmeraldContainer
+                                    )
+                                }
                             }
                         }
 

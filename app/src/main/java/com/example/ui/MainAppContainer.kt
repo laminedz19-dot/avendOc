@@ -314,8 +314,8 @@ fun MainAppContainer(
                                         viewModel.resetCreateForm()
                                         viewModel.selectTab(NavigationTab.MY_ADS)
                                     },
-                                    onVerifyReceipt = { viewModel.verifyReceipt(it) },
-                                    onResetReceipt = { viewModel.resetReceiptVerification() }
+                                    onUploadReceipt = { viewModel.uploadReceipt(it) },
+                                    onRemoveReceipt = { viewModel.removeReceipt() }
                                 )
                             }
 

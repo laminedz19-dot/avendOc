@@ -80,8 +80,10 @@ class MarketplaceRepository {
         commune: String,
         condition: ItemCondition,
         sellerPhone: String,
-        paymentRef: String,
-        paymentDate: String,
+        images: List<String> = emptyList(),
+        deliveryOption: DeliveryOption = DeliveryOption.ALL_69_WILAYAS,
+        paymentRef: String = "",
+        paymentDate: String = "",
         isDemoAccount: Boolean = false
     ): ListingItem {
         val wilaya = WilayasData.findWilayaByCode(wilayaCode)
@@ -101,6 +103,8 @@ class MarketplaceRepository {
             wilayaNameFr = wilayaNameFr,
             commune = commune.ifBlank { wilaya?.communes?.firstOrNull() ?: wilayaNameAr },
             condition = condition,
+            images = images,
+            deliveryOption = deliveryOption,
             sellerId = if (_currentUserRole.value == UserRole.SELLER) "seller-amine" else "buyer-karim",
             sellerName = if (_currentUserRole.value == UserRole.SELLER) "أمين قاسي" else "كريم منصوري",
             sellerPhone = sellerPhone.ifBlank { "0661234567" },

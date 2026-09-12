@@ -6,6 +6,7 @@ import com.example.data.AdStatus
 import com.example.data.AppLanguage
 import com.example.data.CategoryType
 import com.example.data.ChatMessage
+import com.example.data.DeliveryOption
 import com.example.data.ItemCondition
 import com.example.data.ListingItem
 import com.example.data.MarketplaceRepository
@@ -56,14 +57,14 @@ data class CreateAdFormState(
     val commune: String = "",
     val condition: ItemCondition = ItemCondition.LIKE_NEW,
     val sellerPhone: String = "0661234567",
+    val selectedImages: List<String> = emptyList(),
+    val deliveryOption: DeliveryOption = DeliveryOption.ALL_69_WILAYAS,
     val paymentReference: String = "",
     val paymentDate: String = "",
+    val uploadedReceiptUri: String? = null,
     val isDemoAccount: Boolean = false,
     val isSubmitting: Boolean = false,
-    val submittedAdId: String? = null,
-    val receiptVerification: ReceiptVerificationResult = ReceiptVerificationResult(),
-    val isReceiptVerified: Boolean = false,
-    val uploadedReceiptUri: String? = null
+    val submittedAdId: String? = null
 )
 
 class MarketplaceViewModel(
@@ -276,8 +277,10 @@ class MarketplaceViewModel(
             commune = form.commune,
             condition = form.condition,
             sellerPhone = form.sellerPhone,
-            paymentRef = form.paymentReference,
-            paymentDate = form.paymentDate.ifBlank { "2026-08-27" },
+            images = form.selectedImages,
+            deliveryOption = form.deliveryOption,
+            paymentRef = form.paymentReference.ifBlank { "CCP-REC-${System.currentTimeMillis() % 100000}" },
+            paymentDate = form.paymentDate.ifBlank { "2026-09-12" },
             isDemoAccount = form.isDemoAccount
         )
 
@@ -286,51 +289,20 @@ class MarketplaceViewModel(
         }
     }
 
-    // Automated Receipt Verification ("ضف مجال لرفع وصل الدفع مع التحقق منه آليا")
-    fun verifyReceipt(imageUri: String? = null) {
-        viewModelScope.launch {
-            _createAdForm.update {
-                it.copy(
-                    uploadedReceiptUri = imageUri,
-                    receiptVerification = ReceiptVerificationResult(
-                        isScanning = true,
-                        receiptImageUri = imageUri,
-                        validationMessage = "جاري الفحص البصري والآلي لبيانات الوصل..."
-                    )
-                )
-            }
-            delay(1400) // Simulated realistic OCR and algorithmic verification
-            val generatedRef = "BM-2026-${(100000..999999).random()}"
-            val todayDate = "2026-09-12"
-            _createAdForm.update {
-                it.copy(
-                    isReceiptVerified = true,
-                    paymentReference = generatedRef,
-                    paymentDate = todayDate,
-                    uploadedReceiptUri = imageUri,
-                    receiptVerification = ReceiptVerificationResult(
-                        isValid = true,
-                        isScanning = false,
-                        extractedAccount = "007999990008761821",
-                        extractedKey = "94",
-                        extractedAmountDzd = 300,
-                        extractedTransactionRef = generatedRef,
-                        extractedDate = todayDate,
-                        validationMessage = "تم التحقق من الوصل بنجاح: الحساب 007999990008761821 مفتاح 94 والمبلغ 300 دج متطابقان 100%",
-                        receiptImageUri = imageUri
-                    )
-                )
-            }
+    // Receipt upload handler (manual without automated rejection)
+    fun uploadReceipt(imageUri: String?) {
+        _createAdForm.update {
+            it.copy(
+                uploadedReceiptUri = imageUri,
+                paymentReference = it.paymentReference.ifBlank { "REC-${(100000..999999).random()}" },
+                paymentDate = it.paymentDate.ifBlank { "2026-09-12" }
+            )
         }
     }
 
-    fun resetReceiptVerification() {
+    fun removeReceipt() {
         _createAdForm.update {
-            it.copy(
-                isReceiptVerified = false,
-                uploadedReceiptUri = null,
-                receiptVerification = ReceiptVerificationResult()
-            )
+            it.copy(uploadedReceiptUri = null)
         }
     }
 

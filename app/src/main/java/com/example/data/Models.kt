@@ -27,8 +27,29 @@ enum class ItemCondition(val labelAr: String, val labelFr: String) {
     FOR_PARTS("لقطع الغيار (Pour pièces)", "Pour pièces")
 }
 
+enum class DeliveryOption(val labelAr: String, val labelFr: String, val subtitleAr: String, val subtitleFr: String) {
+    ALL_69_WILAYAS(
+        "توصيل متوفر لـ 69 ولاية",
+        "Livraison disponible 69 wilayas",
+        "عبر Yalidine Express / Maystro حتى باب المنزل أو المكتب",
+        "Via Yalidine Express / Maystro à domicile ou en point relais"
+    ),
+    HAND_TO_HAND(
+        "استلام يد بيد في مكان المعاينة",
+        "Remise en main propre",
+        "المقابلة المباشرة مع المشتري والفحص قبل الدفع",
+        "Rencontre directe et vérification avant paiement"
+    ),
+    LOCAL_WILAYA(
+        "توصيل محلي في حدود الولاية فقط",
+        "Livraison locale (Wilaya uniquement)",
+        "التوصيل السريع داخل بلديات الولاية فقط",
+        "Livraison rapide dans les communes de la wilaya seulement"
+    )
+}
+
 enum class AdStatus(val labelAr: String, val labelFr: String) {
-    PAYMENT_REQUIRED("يتطلب دفع 200 دج", "Paiement 200 DZD requis"),
+    PAYMENT_REQUIRED("يتطلب دفع 300 دج", "Paiement 300 DZD requis"),
     PAYMENT_PENDING("قيد مراجعة إيصال الدفع", "Vérification CCP/BaridiMob en cours"),
     PUBLISHED("منشور في السوق", "Publié & Actif"),
     REJECTED("مرفوض (إيصال غير صالح)", "Rejeté (Reçu invalide)"),
@@ -62,6 +83,8 @@ data class ListingItem(
     val paymentReference: String = "",
     val paymentDate: String = "",
     val paymentProofReceiptUrl: String = "",
+    val images: List<String> = emptyList(),
+    val deliveryOption: DeliveryOption = DeliveryOption.ALL_69_WILAYAS,
     val isDemoAccount: Boolean = false,
     val createdAt: String = "اليوم",
     val viewsCount: Int = 12,
