@@ -1,6 +1,6 @@
 {
   "name": "AchriDZ",
-  "description": "سوق المستعمل في الجزائر عبر 69 ولاية مع التحقق من رسوم النشر 200 دج ونظام المساومة والدردشة",
+  "description": "سوق المستعمل والجديد في الجزائر عبر 69 ولاية مع نظام المساومة والتفاوض والدردشة الفورية",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

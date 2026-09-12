@@ -1,5 +1,18 @@
 package com.example.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +37,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -32,12 +46,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import com.example.data.AdStatus
 import com.example.data.AppLanguage
 import com.example.data.OfferStatus
 import com.example.ui.components.AchriDZTopBar
+import com.example.ui.components.AuthDialog
 import com.example.ui.screens.AdDetailScreen
-import com.example.ui.screens.AdminScreen
 import com.example.ui.screens.CreateAdScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.MyAdsScreen
@@ -63,254 +78,275 @@ fun MainAppContainer(
     val platformSettings by viewModel.platformSettings.collectAsState()
     val offers by viewModel.offers.collectAsState()
     val chats by viewModel.chats.collectAsState()
-    val verifications by viewModel.verifications.collectAsState()
     val myAds by viewModel.myAds.collectAsState()
+    val userAccount by viewModel.userAccount.collectAsState()
+    val showAuthDialog by viewModel.showAuthDialog.collectAsState()
+    val visitorCount by viewModel.visitorCount.collectAsState()
+
+    // Fluctuates visitor count every 5 seconds ("والعدد يتغير كل 5ثواني")
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(5000L)
+            viewModel.updateVisitorCount()
+        }
+    }
 
     val isArabic = currentLanguage == AppLanguage.ARABIC
-    val pendingVerifCount = verifications.count { it.status == AdStatus.PAYMENT_PENDING }
     val pendingOffersCount = offers.count { it.status == OfferStatus.PENDING }
 
-    if (selectedListing != null) {
-        AdDetailScreen(
-            listing = selectedListing!!,
-            isFavorite = favoriteIds.contains(selectedListing!!.id),
+    if (showAuthDialog) {
+        AuthDialog(
+            userAccount = userAccount,
             currentLanguage = currentLanguage,
-            chats = chats,
-            onToggleFavorite = { viewModel.toggleFavorite(selectedListing!!.id) },
-            onBack = { viewModel.selectListing(null) },
-            onSendOffer = { price, msg ->
-                viewModel.sendOffer(selectedListing!!, price, msg)
-            },
-            onSendMessage = { text ->
-                viewModel.sendMessage(text)
-            }
+            onDismiss = { viewModel.closeAuthDialog() },
+            onLogin = { phone, pass, role -> viewModel.login(phone, pass, role) },
+            onRegister = { name, phone, wilaya, role -> viewModel.register(name, phone, wilaya, role) }
         )
-    } else {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            topBar = {
-                AchriDZTopBar(
-                    currentRole = currentRole,
-                    currentLanguage = currentLanguage,
-                    onRoleSelected = { role -> viewModel.switchRole(role) },
-                    onToggleLanguage = { viewModel.toggleLanguage() }
+    }
+
+    AnimatedContent(
+        targetState = selectedListing,
+        transitionSpec = {
+            if (targetState != null) {
+                (slideInVertically(
+                    initialOffsetY = { it / 6 },
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy)
+                ) + fadeIn(animationSpec = tween(240))).togetherWith(
+                    fadeOut(animationSpec = tween(180))
                 )
-            },
-            bottomBar = {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier
-                        .windowInsetsPadding(WindowInsets.navigationBars)
-                        .testTag("main_bottom_nav")
-                ) {
-                    // Tab 1: Marketplace
-                    NavigationBarItem(
-                        selected = selectedTab == NavigationTab.MARKETPLACE,
-                        onClick = { viewModel.selectTab(NavigationTab.MARKETPLACE) },
-                        icon = {
-                            Icon(imageVector = Icons.Default.Storefront, contentDescription = "Marketplace")
-                        },
-                        label = {
-                            Text(
-                                text = if (isArabic) "السوق" else "Marché",
-                                fontSize = 11.sp,
-                                fontWeight = if (selectedTab == NavigationTab.MARKETPLACE) FontWeight.Bold else FontWeight.Normal
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = EmeraldPrimary,
-                            selectedTextColor = EmeraldPrimary,
-                            indicatorColor = EmeraldContainer
-                        ),
-                        modifier = Modifier.testTag("nav_tab_marketplace")
-                    )
-
-                    // Tab 2: Post Ad
-                    NavigationBarItem(
-                        selected = selectedTab == NavigationTab.POST_AD,
-                        onClick = { viewModel.selectTab(NavigationTab.POST_AD) },
-                        icon = {
-                            Icon(imageVector = Icons.Default.AddCircle, contentDescription = "Post Ad")
-                        },
-                        label = {
-                            Text(
-                                text = if (isArabic) "نشر إعلان" else "Publier",
-                                fontSize = 11.sp,
-                                fontWeight = if (selectedTab == NavigationTab.POST_AD) FontWeight.Bold else FontWeight.Normal
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = EmeraldPrimary,
-                            selectedTextColor = EmeraldPrimary,
-                            indicatorColor = EmeraldContainer
-                        ),
-                        modifier = Modifier.testTag("nav_tab_post_ad")
-                    )
-
-                    // Tab 3: Bargaining & Chat
-                    NavigationBarItem(
-                        selected = selectedTab == NavigationTab.OFFERS_CHAT,
-                        onClick = { viewModel.selectTab(NavigationTab.OFFERS_CHAT) },
-                        icon = {
-                            BadgedBox(
-                                badge = {
-                                    if (pendingOffersCount > 0) {
-                                        Badge(containerColor = AmberAccent) {
-                                            Text("$pendingOffersCount")
-                                        }
-                                    }
-                                }
-                            ) {
-                                Icon(imageVector = Icons.Default.Handshake, contentDescription = "Offers & Chat")
-                            }
-                        },
-                        label = {
-                            Text(
-                                text = if (isArabic) "المساومة" else "Négociations",
-                                fontSize = 11.sp,
-                                fontWeight = if (selectedTab == NavigationTab.OFFERS_CHAT) FontWeight.Bold else FontWeight.Normal
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = EmeraldPrimary,
-                            selectedTextColor = EmeraldPrimary,
-                            indicatorColor = EmeraldContainer
-                        ),
-                        modifier = Modifier.testTag("nav_tab_offers_chat")
-                    )
-
-                    // Tab 4: My Ads
-                    NavigationBarItem(
-                        selected = selectedTab == NavigationTab.MY_ADS,
-                        onClick = { viewModel.selectTab(NavigationTab.MY_ADS) },
-                        icon = {
-                            Icon(imageVector = Icons.Default.Inventory, contentDescription = "My Ads")
-                        },
-                        label = {
-                            Text(
-                                text = if (isArabic) "إعلاناتي" else "Mes annonces",
-                                fontSize = 11.sp,
-                                fontWeight = if (selectedTab == NavigationTab.MY_ADS) FontWeight.Bold else FontWeight.Normal
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = EmeraldPrimary,
-                            selectedTextColor = EmeraldPrimary,
-                            indicatorColor = EmeraldContainer
-                        ),
-                        modifier = Modifier.testTag("nav_tab_my_ads")
-                    )
-
-                    // Tab 5: Admin CCP Verification
-                    NavigationBarItem(
-                        selected = selectedTab == NavigationTab.ADMIN,
-                        onClick = { viewModel.selectTab(NavigationTab.ADMIN) },
-                        icon = {
-                            BadgedBox(
-                                badge = {
-                                    if (pendingVerifCount > 0) {
-                                        Badge(containerColor = AmberAccent) {
-                                            Text("$pendingVerifCount")
-                                        }
-                                    }
-                                }
-                            ) {
-                                Icon(imageVector = Icons.Default.AdminPanelSettings, contentDescription = "Admin")
-                            }
-                        },
-                        label = {
-                            Text(
-                                text = if (isArabic) "مراقبة CCP" else "Admin CCP",
-                                fontSize = 10.sp,
-                                fontWeight = if (selectedTab == NavigationTab.ADMIN) FontWeight.Bold else FontWeight.Normal
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = EmeraldPrimary,
-                            selectedTextColor = EmeraldPrimary,
-                            indicatorColor = EmeraldContainer
-                        ),
-                        modifier = Modifier.testTag("nav_tab_admin")
-                    )
-                }
+            } else {
+                fadeIn(animationSpec = tween(200)).togetherWith(
+                    slideOutVertically(
+                        targetOffsetY = { it / 6 },
+                        animationSpec = tween(220)
+                    ) + fadeOut(animationSpec = tween(180))
+                )
             }
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                when (selectedTab) {
-                    NavigationTab.MARKETPLACE -> {
-                        HomeScreen(
-                            listings = filteredListings,
-                            filterState = filterState,
-                            favoriteIds = favoriteIds,
-                            currentLanguage = currentLanguage,
-                            onSearchChange = { viewModel.updateSearchQuery(it) },
-                            onCategorySelect = { viewModel.selectCategoryFilter(it) },
-                            onWilayaSelect = { viewModel.selectWilayaFilter(it) },
-                            onToggleNegotiable = { viewModel.toggleOnlyNegotiable() },
-                            onResetFilters = { viewModel.resetFilters() },
-                            onToggleFavorite = { viewModel.toggleFavorite(it) },
-                            onListingClick = { viewModel.selectListing(it) },
-                            onPostAdClick = { viewModel.selectTab(NavigationTab.POST_AD) }
-                        )
-                    }
-
-                    NavigationTab.POST_AD -> {
-                        CreateAdScreen(
-                            formState = createAdForm,
-                            platformSettings = platformSettings,
-                            currentLanguage = currentLanguage,
-                            onFormChange = { viewModel.updateCreateForm(it) },
-                            onNextStep = { viewModel.nextFormStep() },
-                            onPrevStep = { viewModel.prevFormStep() },
-                            onSubmit = { viewModel.submitCreateAd() },
-                            onReset = { viewModel.resetCreateForm() },
-                            onViewMyAds = {
-                                viewModel.resetCreateForm()
-                                viewModel.selectTab(NavigationTab.MY_ADS)
-                            }
-                        )
-                    }
-
-                    NavigationTab.OFFERS_CHAT -> {
-                        OffersAndChatScreen(
-                            offers = offers,
-                            chats = chats,
-                            currentLanguage = currentLanguage,
-                            onRespondOffer = { id, accept, counter ->
-                                viewModel.respondToOffer(id, accept, counter)
+        },
+        label = "listing_detail_screen_transition"
+    ) { currentSelectedListing ->
+        if (currentSelectedListing != null) {
+            AdDetailScreen(
+                listing = currentSelectedListing,
+                isFavorite = favoriteIds.contains(currentSelectedListing.id),
+                currentLanguage = currentLanguage,
+                chats = chats,
+                onToggleFavorite = { viewModel.toggleFavorite(currentSelectedListing.id) },
+                onBack = { viewModel.selectListing(null) },
+                onSendOffer = { price, msg ->
+                    viewModel.sendOffer(currentSelectedListing, price, msg)
+                },
+                onSendMessage = { text ->
+                    viewModel.sendMessage(text)
+                }
+            )
+        } else {
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                topBar = {
+                    AchriDZTopBar(
+                        currentLanguage = currentLanguage,
+                        visitorCount = visitorCount,
+                        onToggleLanguage = { viewModel.toggleLanguage() },
+                        onOpenAuth = { viewModel.openAuthDialog() }
+                    )
+                },
+                bottomBar = {
+                    NavigationBar(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier
+                            .windowInsetsPadding(WindowInsets.navigationBars)
+                            .testTag("main_bottom_nav")
+                    ) {
+                        // Tab 1: Marketplace
+                        NavigationBarItem(
+                            selected = selectedTab == NavigationTab.MARKETPLACE,
+                            onClick = { viewModel.selectTab(NavigationTab.MARKETPLACE) },
+                            icon = {
+                                Icon(imageVector = Icons.Default.Storefront, contentDescription = "Marketplace")
                             },
-                            onSendMessage = { text ->
-                                viewModel.sendMessage(text)
-                            }
-                        )
-                    }
-
-                    NavigationTab.MY_ADS -> {
-                        MyAdsScreen(
-                            myAds = myAds,
-                            platformSettings = platformSettings,
-                            currentLanguage = currentLanguage,
-                            onPostAdClick = { viewModel.selectTab(NavigationTab.POST_AD) },
-                            onSubmitPaymentForAd = { id, ref, date ->
-                                viewModel.submitPaymentForAd(id, ref, date)
+                            label = {
+                                Text(
+                                    text = if (isArabic) "السوق" else "Marché",
+                                    fontSize = 11.sp,
+                                    fontWeight = if (selectedTab == NavigationTab.MARKETPLACE) FontWeight.Bold else FontWeight.Normal
+                                )
                             },
-                            onMarkAsSold = { viewModel.markAdSold(it) },
-                            onAdClick = { viewModel.selectListing(it) }
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = EmeraldPrimary,
+                                selectedTextColor = EmeraldPrimary,
+                                indicatorColor = EmeraldContainer
+                            ),
+                            modifier = Modifier.testTag("nav_tab_marketplace")
+                        )
+
+                        // Tab 2: Post Ad
+                        NavigationBarItem(
+                            selected = selectedTab == NavigationTab.POST_AD,
+                            onClick = { viewModel.selectTab(NavigationTab.POST_AD) },
+                            icon = {
+                                Icon(imageVector = Icons.Default.AddCircle, contentDescription = "Post Ad")
+                            },
+                            label = {
+                                Text(
+                                    text = if (isArabic) "نشر إعلان" else "Publier",
+                                    fontSize = 11.sp,
+                                    fontWeight = if (selectedTab == NavigationTab.POST_AD) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = EmeraldPrimary,
+                                selectedTextColor = EmeraldPrimary,
+                                indicatorColor = EmeraldContainer
+                            ),
+                            modifier = Modifier.testTag("nav_tab_post_ad")
+                        )
+
+                        // Tab 3: Bargaining & Chat
+                        NavigationBarItem(
+                            selected = selectedTab == NavigationTab.OFFERS_CHAT,
+                            onClick = { viewModel.selectTab(NavigationTab.OFFERS_CHAT) },
+                            icon = {
+                                BadgedBox(
+                                    badge = {
+                                        if (pendingOffersCount > 0) {
+                                            Badge(containerColor = AmberAccent) {
+                                                Text("$pendingOffersCount")
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(imageVector = Icons.Default.Handshake, contentDescription = "Offers & Chat")
+                                }
+                            },
+                            label = {
+                                Text(
+                                    text = if (isArabic) "المساومة" else "Négociations",
+                                    fontSize = 11.sp,
+                                    fontWeight = if (selectedTab == NavigationTab.OFFERS_CHAT) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = EmeraldPrimary,
+                                selectedTextColor = EmeraldPrimary,
+                                indicatorColor = EmeraldContainer
+                            ),
+                            modifier = Modifier.testTag("nav_tab_offers_chat")
+                        )
+
+                        // Tab 4: My Ads
+                        NavigationBarItem(
+                            selected = selectedTab == NavigationTab.MY_ADS,
+                            onClick = { viewModel.selectTab(NavigationTab.MY_ADS) },
+                            icon = {
+                                Icon(imageVector = Icons.Default.Inventory, contentDescription = "My Ads")
+                            },
+                            label = {
+                                Text(
+                                    text = if (isArabic) "إعلاناتي" else "Mes annonces",
+                                    fontSize = 11.sp,
+                                    fontWeight = if (selectedTab == NavigationTab.MY_ADS) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = EmeraldPrimary,
+                                selectedTextColor = EmeraldPrimary,
+                                indicatorColor = EmeraldContainer
+                            ),
+                            modifier = Modifier.testTag("nav_tab_my_ads")
                         )
                     }
+                }
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                ) {
+                    AnimatedContent(
+                        targetState = selectedTab,
+                        transitionSpec = {
+                            val forward = targetState.ordinal > initialState.ordinal
+                            val multiplier = if (isArabic) -1 else 1
+                            val direction = if (forward) multiplier else -multiplier
+                            (slideInHorizontally(
+                                initialOffsetX = { (it * 0.12f * direction).toInt() },
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy)
+                            ) + fadeIn(animationSpec = tween(220))).togetherWith(
+                                slideOutHorizontally(
+                                    targetOffsetX = { (-it * 0.12f * direction).toInt() },
+                                    animationSpec = tween(180)
+                                ) + fadeOut(animationSpec = tween(180))
+                            )
+                        },
+                        label = "tab_content_transition",
+                        modifier = Modifier.fillMaxSize()
+                    ) { currentTab ->
+                        when (currentTab) {
+                            NavigationTab.MARKETPLACE -> {
+                                HomeScreen(
+                                    listings = filteredListings,
+                                    filterState = filterState,
+                                    favoriteIds = favoriteIds,
+                                    currentLanguage = currentLanguage,
+                                    onSearchChange = { viewModel.updateSearchQuery(it) },
+                                    onCategorySelect = { viewModel.selectCategoryFilter(it) },
+                                    onWilayaSelect = { viewModel.selectWilayaFilter(it) },
+                                    onToggleNegotiable = { viewModel.toggleOnlyNegotiable() },
+                                    onResetFilters = { viewModel.resetFilters() },
+                                    onToggleFavorite = { viewModel.toggleFavorite(it) },
+                                    onListingClick = { viewModel.selectListing(it) },
+                                    onPostAdClick = { viewModel.selectTab(NavigationTab.POST_AD) }
+                                )
+                            }
 
-                    NavigationTab.ADMIN -> {
-                        AdminScreen(
-                            verifications = verifications,
-                            platformSettings = platformSettings,
-                            currentLanguage = currentLanguage,
-                            onApprovePayment = { viewModel.approvePayment(it) },
-                            onRejectPayment = { id, reason -> viewModel.rejectPayment(id, reason) }
-                        )
+                            NavigationTab.POST_AD -> {
+                                CreateAdScreen(
+                                    formState = createAdForm,
+                                    platformSettings = platformSettings,
+                                    currentLanguage = currentLanguage,
+                                    onFormChange = { viewModel.updateCreateForm(it) },
+                                    onNextStep = { viewModel.nextFormStep() },
+                                    onPrevStep = { viewModel.prevFormStep() },
+                                    onSubmit = { viewModel.submitCreateAd() },
+                                    onReset = { viewModel.resetCreateForm() },
+                                    onViewMyAds = {
+                                        viewModel.resetCreateForm()
+                                        viewModel.selectTab(NavigationTab.MY_ADS)
+                                    },
+                                    onVerifyReceipt = { viewModel.verifyReceipt(it) },
+                                    onResetReceipt = { viewModel.resetReceiptVerification() }
+                                )
+                            }
+
+                            NavigationTab.OFFERS_CHAT -> {
+                                OffersAndChatScreen(
+                                    offers = offers,
+                                    chats = chats,
+                                    currentLanguage = currentLanguage,
+                                    onRespondOffer = { id, accept, counter ->
+                                        viewModel.respondToOffer(id, accept, counter)
+                                    },
+                                    onSendMessage = { text ->
+                                        viewModel.sendMessage(text)
+                                    }
+                                )
+                            }
+
+                            NavigationTab.MY_ADS -> {
+                                MyAdsScreen(
+                                    myAds = myAds,
+                                    platformSettings = platformSettings,
+                                    currentLanguage = currentLanguage,
+                                    onPostAdClick = { viewModel.selectTab(NavigationTab.POST_AD) },
+                                    onSubmitPaymentForAd = { id, ref, date ->
+                                        viewModel.submitPaymentForAd(id, ref, date)
+                                    },
+                                    onMarkAsSold = { viewModel.markAdSold(it) },
+                                    onAdClick = { viewModel.selectListing(it) }
+                                )
+                            }
+                        }
                     }
                 }
             }

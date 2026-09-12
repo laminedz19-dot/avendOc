@@ -1,5 +1,14 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -139,136 +148,156 @@ fun OffersAndChatScreen(
             )
         }
 
-        if (selectedTabIdx == 0) {
-            // Offers Tab
-            if (offers.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.Handshake,
-                            contentDescription = null,
-                            tint = SlateMuted,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = if (isArabic) "لا توجد عروض مساومة حالياً" else "Aucune offre de prix",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        )
+        AnimatedContent(
+            targetState = selectedTabIdx,
+            transitionSpec = {
+                val forward = targetState > initialState
+                val multiplier = if (isArabic) -1 else 1
+                val direction = if (forward) multiplier else -multiplier
+                (slideInHorizontally(
+                    initialOffsetX = { (it * 0.15f * direction).toInt() },
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy)
+                ) + fadeIn(animationSpec = tween(220))).togetherWith(
+                    slideOutHorizontally(
+                        targetOffsetX = { (-it * 0.15f * direction).toInt() },
+                        animationSpec = tween(180)
+                    ) + fadeOut(animationSpec = tween(180))
+                )
+            },
+            label = "offers_chat_tab_transition",
+            modifier = Modifier.weight(1f).fillMaxWidth()
+        ) { currentTabIdx ->
+            if (currentTabIdx == 0) {
+                // Offers Tab
+                if (offers.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Handshake,
+                                contentDescription = null,
+                                tint = SlateMuted,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = if (isArabic) "لا توجد عروض مساومة حالياً" else "Aucune offre de prix",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(offers, key = { it.id }) { offer ->
+                            OfferCardItem(
+                                offer = offer,
+                                isArabic = isArabic,
+                                onAccept = { onRespondOffer(offer.id, true, null) },
+                                onReject = { onRespondOffer(offer.id, false, null) },
+                                onCounter = {
+                                    counterDialogOffer = offer
+                                    counterPriceInput = ((offer.originalPriceDzd + offer.proposedPriceDzd) / 2).toString()
+                                }
+                            )
+                        }
                     }
                 }
             } else {
-                LazyColumn(
+                // Chat Tab
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(16.dp)
                 ) {
-                    items(offers, key = { it.id }) { offer ->
-                        OfferCardItem(
-                            offer = offer,
-                            isArabic = isArabic,
-                            onAccept = { onRespondOffer(offer.id, true, null) },
-                            onReject = { onRespondOffer(offer.id, false, null) },
-                            onCounter = {
-                                counterDialogOffer = offer
-                                counterPriceInput = ((offer.originalPriceDzd + offer.proposedPriceDzd) / 2).toString()
-                            }
-                        )
-                    }
-                }
-            }
-        } else {
-            // Chat Tab
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(chats, key = { it.id }) { msg ->
-                        val isMe = msg.isFromMe
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
-                        ) {
-                            Surface(
-                                color = if (isMe) EmeraldPrimary else MaterialTheme.colorScheme.surface,
-                                shape = RoundedCornerShape(14.dp),
-                                shadowElevation = 1.dp
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(chats, key = { it.id }) { msg ->
+                            val isMe = msg.isFromMe
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
                             ) {
-                                Column(modifier = Modifier.padding(10.dp)) {
-                                    Text(
-                                        text = msg.senderName,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isMe) Color.White.copy(alpha = 0.8f) else EmeraldPrimary
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = msg.text,
-                                        fontSize = 13.sp,
-                                        color = if (isMe) Color.White else MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = msg.timestamp,
-                                        fontSize = 9.sp,
-                                        color = if (isMe) Color.White.copy(alpha = 0.6f) else SlateMuted,
-                                        modifier = Modifier.align(Alignment.End)
-                                    )
+                                Surface(
+                                    color = if (isMe) EmeraldPrimary else MaterialTheme.colorScheme.surface,
+                                    shape = RoundedCornerShape(14.dp),
+                                    shadowElevation = 1.dp
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
+                                        Text(
+                                            text = msg.senderName,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isMe) Color.White.copy(alpha = 0.8f) else EmeraldPrimary
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = msg.text,
+                                            fontSize = 13.sp,
+                                            color = if (isMe) Color.White else MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = msg.timestamp,
+                                            fontSize = 9.sp,
+                                            color = if (isMe) Color.White.copy(alpha = 0.6f) else SlateMuted,
+                                            modifier = Modifier.align(Alignment.End)
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = chatTextInput,
-                        onValueChange = { chatTextInput = it },
-                        placeholder = {
-                            Text(
-                                text = if (isArabic) "اكتب رسالة فورية..." else "Écrire un message...",
-                                fontSize = 12.sp
-                            )
-                        },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = {
-                            if (chatTextInput.isNotBlank()) {
-                                onSendMessage(chatTextInput)
-                                chatTextInput = ""
-                            }
-                        },
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(EmeraldPrimary)
-                            .size(46.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Send",
-                            tint = Color.White
+                        OutlinedTextField(
+                            value = chatTextInput,
+                            onValueChange = { chatTextInput = it },
+                            placeholder = {
+                                Text(
+                                    text = if (isArabic) "اكتب رسالة فورية..." else "Écrire un message...",
+                                    fontSize = 12.sp
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(
+                            onClick = {
+                                if (chatTextInput.isNotBlank()) {
+                                    onSendMessage(chatTextInput)
+                                    chatTextInput = ""
+                                }
+                            },
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(EmeraldPrimary)
+                                .size(46.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Send",
+                                tint = Color.White
+                            )
+                        }
                     }
                 }
             }

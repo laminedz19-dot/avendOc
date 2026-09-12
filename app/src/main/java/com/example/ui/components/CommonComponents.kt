@@ -1,5 +1,11 @@
 package com.example.ui.components
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -85,12 +92,12 @@ fun AdStatusBadge(status: AdStatus, isArabic: Boolean = true) {
         AdStatus.PAYMENT_PENDING -> Triple(
             StatusAmberContainer,
             StatusAmber,
-            if (isArabic) "قيد مراجعة 200 دج" else "Vérif CCP 200 DZD"
+            if (isArabic) "قيد مراجعة 300 دج" else "Vérif CCP 300 DZD"
         )
         AdStatus.PAYMENT_REQUIRED -> Triple(
             AmberContainer,
             OnAmberContainer,
-            if (isArabic) "يتطلب دفع 200 دج" else "Paiement requis"
+            if (isArabic) "يتطلب دفع 300 دج" else "Paiement requis"
         )
         AdStatus.REJECTED -> Triple(
             StatusRedContainer,
@@ -215,13 +222,26 @@ fun NegotiableBadge(isArabic: Boolean = true) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AchriDZTopBar(
-    currentRole: UserRole,
     currentLanguage: AppLanguage,
-    onRoleSelected: (UserRole) -> Unit,
-    onToggleLanguage: () -> Unit
+    visitorCount: Int = 18450,
+    currentRole: UserRole = UserRole.SELLER,
+    onRoleSelected: (UserRole) -> Unit = {},
+    onToggleLanguage: () -> Unit,
+    onOpenAuth: () -> Unit = {}
 ) {
-    var roleMenuExpanded by remember { mutableStateOf(false) }
     val isArabic = currentLanguage == AppLanguage.ARABIC
+
+    // Blinking animation every 3 seconds (1500ms down + 1500ms up = 3000ms complete cycle)
+    val infiniteTransition = rememberInfiniteTransition(label = "visitor_blink_transition")
+    val blinkAlpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "visitor_blink_alpha"
+    )
 
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
@@ -233,7 +253,7 @@ fun AchriDZTopBar(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(32.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(EmeraldPrimary),
                     contentAlignment = Alignment.Center
@@ -242,27 +262,58 @@ fun AchriDZTopBar(
                         imageVector = Icons.Default.Storefront,
                         contentDescription = "AchriDZ Logo",
                         tint = Color.White,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
                             text = "AchriDZ",
                             fontWeight = FontWeight.Black,
-                            fontSize = 19.sp,
+                            fontSize = 16.sp,
                             color = EmeraldPrimary
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text(
                             text = "🇩🇿",
-                            fontSize = 14.sp
+                            fontSize = 12.sp
                         )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        // The sentence next to AchriDZ: "عدد زوارنا الآن [عدد] زائر", blinking every 3 seconds
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = EmeraldContainer,
+                            modifier = Modifier
+                                .alpha(blinkAlpha)
+                                .testTag("visitor_count_badge")
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(StatusGreen)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isArabic) "عدد زوارنا الآن $visitorCount زائر" else "Visiteurs actuels: $visitorCount",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = OnEmeraldContainer,
+                                    maxLines = 1
+                                )
+                            }
+                        }
                     }
                     Text(
                         text = if (isArabic) "سوق المستعمل 69 ولاية" else "Marketplace 69 Wilayas",
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         color = SlateMuted,
                         fontWeight = FontWeight.Medium
                     )
@@ -273,7 +324,9 @@ fun AchriDZTopBar(
             // Language switch button
             IconButton(
                 onClick = onToggleLanguage,
-                modifier = Modifier.testTag("lang_toggle_button")
+                modifier = Modifier
+                    .size(36.dp)
+                    .testTag("lang_toggle_button")
             ) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
@@ -281,18 +334,18 @@ fun AchriDZTopBar(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Language,
                             contentDescription = "Language",
                             tint = EmeraldPrimary,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(14.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
                         Text(
                             text = if (isArabic) "FR" else "عربي",
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -300,79 +353,26 @@ fun AchriDZTopBar(
                 }
             }
 
-            // Role Switcher Dropdown
-            Box {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (currentRole == UserRole.ADMIN) AmberContainer else EmeraldContainer,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { roleMenuExpanded = true }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                        .testTag("role_switcher_button")
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                    ) {
-                        Icon(
-                            imageVector = when (currentRole) {
-                                UserRole.ADMIN -> Icons.Default.AdminPanelSettings
-                                UserRole.SELLER -> Icons.Default.Storefront
-                                UserRole.BUYER -> Icons.Default.Person
-                            },
-                            contentDescription = null,
-                            tint = if (currentRole == UserRole.ADMIN) OnAmberContainer else OnEmeraldContainer,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (isArabic) currentRole.displayNameAr.split(" ")[0] else currentRole.displayNameFr.split(" ")[0],
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (currentRole == UserRole.ADMIN) OnAmberContainer else OnEmeraldContainer
-                        )
-                    }
-                }
+            Spacer(modifier = Modifier.width(4.dp))
 
-                DropdownMenu(
-                    expanded = roleMenuExpanded,
-                    onDismissRequest = { roleMenuExpanded = false }
+            // Auth / Account button
+            IconButton(
+                onClick = onOpenAuth,
+                modifier = Modifier
+                    .size(36.dp)
+                    .testTag("open_auth_button")
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = EmeraldContainer,
+                    modifier = Modifier.size(28.dp)
                 ) {
-                    UserRole.values().forEach { role ->
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = when (role) {
-                                            UserRole.ADMIN -> Icons.Default.AdminPanelSettings
-                                            UserRole.SELLER -> Icons.Default.Storefront
-                                            UserRole.BUYER -> Icons.Default.Person
-                                        },
-                                        contentDescription = null,
-                                        tint = if (role == currentRole) EmeraldPrimary else SlateMuted,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = if (isArabic) role.displayNameAr else role.displayNameFr,
-                                        fontWeight = if (role == currentRole) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                    if (role == currentRole) {
-                                        Spacer(modifier = Modifier.weight(1f))
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            tint = EmeraldPrimary,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
-                            },
-                            onClick = {
-                                onRoleSelected(role)
-                                roleMenuExpanded = false
-                            }
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Account",
+                            tint = OnEmeraldContainer,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }

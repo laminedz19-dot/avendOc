@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.update
 
 class MarketplaceRepository {
 
+    private val cloudService = FirebaseFirestoreService()
+
     private val _listings = MutableStateFlow<List<ListingItem>>(SampleData.initialListings)
     val listings: StateFlow<List<ListingItem>> = _listings.asStateFlow()
 
@@ -30,6 +32,19 @@ class MarketplaceRepository {
 
     private val _favoriteIds = MutableStateFlow<Set<String>>(setOf("ad-1", "ad-2"))
     val favoriteIds: StateFlow<Set<String>> = _favoriteIds.asStateFlow()
+
+    init {
+        // Initialize Firebase Firestore cloud sync listener
+        cloudService.initialize { remoteListings ->
+            if (remoteListings.isNotEmpty()) {
+                _listings.update { localList ->
+                    val remoteIds = remoteListings.map { it.id }.toSet()
+                    val remainingLocal = localList.filterNot { remoteIds.contains(it.id) }
+                    remoteListings + remainingLocal
+                }
+            }
+        }
+    }
 
     fun switchRole(role: UserRole) {
         _currentUserRole.value = role
@@ -73,7 +88,7 @@ class MarketplaceRepository {
         val wilayaNameAr = wilaya?.nameAr ?: "الجزائر"
         val wilayaNameFr = wilaya?.nameFr ?: "Alger"
 
-        val initialStatus = if (paymentRef.isNotBlank()) AdStatus.PAYMENT_PENDING else AdStatus.PAYMENT_REQUIRED
+        val initialStatus = AdStatus.PUBLISHED
 
         val newAd = ListingItem(
             title = title,
@@ -97,21 +112,7 @@ class MarketplaceRepository {
         )
 
         _listings.update { listOf(newAd) + it }
-
-        if (paymentRef.isNotBlank()) {
-            val verification = PaymentVerificationRecord(
-                listingId = newAd.id,
-                listingTitle = newAd.title,
-                sellerName = newAd.sellerName,
-                sellerPhone = newAd.sellerPhone,
-                wilaya = "$wilayaCode - $wilayaNameAr",
-                amountDzd = 200,
-                transactionRef = paymentRef,
-                submittedAt = "الآن",
-                status = AdStatus.PAYMENT_PENDING
-            )
-            _verifications.update { listOf(verification) + it }
-        }
+        cloudService.syncListing(newAd)
 
         return newAd
     }
@@ -200,6 +201,7 @@ class MarketplaceRepository {
             timestamp = "الآن"
         )
         _offers.update { listOf(offer) + it }
+        cloudService.syncOffer(offer)
         _listings.update { list ->
             list.map {
                 if (it.id == listingId) it.copy(offersCount = it.offersCount + 1) else it
@@ -211,13 +213,15 @@ class MarketplaceRepository {
         _offers.update { list ->
             list.map { offer ->
                 if (offer.id == offerId) {
-                    if (counterPrice != null && counterPrice > 0) {
+                    val updated = if (counterPrice != null && counterPrice > 0) {
                         offer.copy(status = OfferStatus.COUNTER_OFFER, counterPriceDzd = counterPrice)
                     } else if (accept) {
                         offer.copy(status = OfferStatus.ACCEPTED)
                     } else {
                         offer.copy(status = OfferStatus.REJECTED)
                     }
+                    cloudService.syncOffer(updated)
+                    updated
                 } else offer
             }
         }
@@ -234,6 +238,7 @@ class MarketplaceRepository {
             isFromMe = true
         )
         _chats.update { it + msg }
+        cloudService.syncChatMessage(msg)
     }
 
     fun markAsSold(listingId: String) {

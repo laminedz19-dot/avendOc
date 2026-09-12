@@ -146,7 +146,7 @@ object SampleData {
             sellerId = "seller-yacine",
             sellerName = "ياسين بجاوي",
             sellerPhone = "0771889900",
-            status = AdStatus.PAYMENT_PENDING,
+            status = AdStatus.PUBLISHED,
             paymentReference = "BM-2026-77391",
             paymentDate = "2026-08-27",
             viewsCount = 150,
@@ -167,7 +167,7 @@ object SampleData {
             sellerId = "seller-amine",
             sellerName = "أمين قاسي",
             sellerPhone = "0661234567",
-            status = AdStatus.PAYMENT_REQUIRED,
+            status = AdStatus.PUBLISHED,
             viewsCount = 85,
             offersCount = 0
         )

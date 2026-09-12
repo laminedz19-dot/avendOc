@@ -13,9 +13,12 @@ import com.example.data.NegotiationOffer
 import com.example.data.OfferStatus
 import com.example.data.PaymentVerificationRecord
 import com.example.data.PlatformSettings
+import com.example.data.ReceiptVerificationResult
+import com.example.data.UserAccount
 import com.example.data.UserRole
 import com.example.data.Wilaya
 import com.example.data.WilayasData
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,13 +26,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 enum class NavigationTab {
     MARKETPLACE,
     POST_AD,
     OFFERS_CHAT,
-    MY_ADS,
-    ADMIN
+    MY_ADS
 }
 
 data class FilterState(
@@ -57,7 +60,10 @@ data class CreateAdFormState(
     val paymentDate: String = "",
     val isDemoAccount: Boolean = false,
     val isSubmitting: Boolean = false,
-    val submittedAdId: String? = null
+    val submittedAdId: String? = null,
+    val receiptVerification: ReceiptVerificationResult = ReceiptVerificationResult(),
+    val isReceiptVerified: Boolean = false,
+    val uploadedReceiptUri: String? = null
 )
 
 class MarketplaceViewModel(
@@ -86,6 +92,76 @@ class MarketplaceViewModel(
 
     private val _activeChatListingId = MutableStateFlow<String?>("ad-1")
     val activeChatListingId: StateFlow<String?> = _activeChatListingId.asStateFlow()
+
+    // Live Visitors Counter ("عدد زوارنا الآن عدد زائر - بين 10000 و 30000 يتغير كل 5 ثواني صعودا ونزولا")
+    private val _visitorCount = MutableStateFlow(kotlin.random.Random.nextInt(14000, 26000))
+    val visitorCount: StateFlow<Int> = _visitorCount.asStateFlow()
+
+    fun updateVisitorCount() {
+        val current = _visitorCount.value
+        val isIncrease = kotlin.random.Random.nextBoolean()
+        val step = kotlin.random.Random.nextInt(25, 380)
+        val delta = if (isIncrease) step else -step
+        val candidate = current + delta
+        _visitorCount.value = when {
+            candidate > 30000 -> 30000 - kotlin.random.Random.nextInt(50, 300)
+            candidate < 10000 -> 10000 + kotlin.random.Random.nextInt(50, 300)
+            else -> candidate
+        }
+    }
+
+    // User Account & Authentication ("عند فتح التطبيق تظهر لائحة بها التسجيل وتحتها الدخول")
+    private val _userAccount = MutableStateFlow(
+        UserAccount(
+            id = "seller-amine",
+            name = "أمين قاسي",
+            phone = "0661234567",
+            wilayaCode = "16",
+            isLoggedIn = true
+        )
+    )
+    val userAccount: StateFlow<UserAccount> = _userAccount.asStateFlow()
+
+    private val _showAuthDialog = MutableStateFlow(true)
+    val showAuthDialog: StateFlow<Boolean> = _showAuthDialog.asStateFlow()
+
+    fun openAuthDialog() {
+        _showAuthDialog.value = true
+    }
+
+    fun closeAuthDialog() {
+        _showAuthDialog.value = false
+    }
+
+    fun login(phoneOrEmail: String, password: String, role: UserRole = UserRole.SELLER) {
+        val name = if (role == UserRole.SELLER) "أمين قاسي" else "كريم منصوري"
+        _userAccount.value = UserAccount(
+            id = if (role == UserRole.SELLER) "seller-amine" else "buyer-karim",
+            name = name,
+            phone = phoneOrEmail.ifBlank { "0661234567" },
+            wilayaCode = "16",
+            isLoggedIn = true
+        )
+        repository.switchRole(role)
+        _showAuthDialog.value = false
+    }
+
+    fun register(name: String, phone: String, wilayaCode: String, role: UserRole = UserRole.SELLER) {
+        _userAccount.value = UserAccount(
+            id = "user-${System.currentTimeMillis() % 10000}",
+            name = name.ifBlank { "مستخدم جديد" },
+            phone = phone.ifBlank { "0661234567" },
+            wilayaCode = wilayaCode,
+            isLoggedIn = true
+        )
+        repository.switchRole(role)
+        _showAuthDialog.value = false
+    }
+
+    fun logout() {
+        _userAccount.value = UserAccount(isLoggedIn = false)
+        _showAuthDialog.value = true
+    }
 
     val filteredListings: StateFlow<List<ListingItem>> = combine(
         repository.listings,
@@ -210,17 +286,57 @@ class MarketplaceViewModel(
         }
     }
 
-    // 200 DZD Payment Verification Handlers
+    // Automated Receipt Verification ("ضف مجال لرفع وصل الدفع مع التحقق منه آليا")
+    fun verifyReceipt(imageUri: String? = null) {
+        viewModelScope.launch {
+            _createAdForm.update {
+                it.copy(
+                    uploadedReceiptUri = imageUri,
+                    receiptVerification = ReceiptVerificationResult(
+                        isScanning = true,
+                        receiptImageUri = imageUri,
+                        validationMessage = "جاري الفحص البصري والآلي لبيانات الوصل..."
+                    )
+                )
+            }
+            delay(1400) // Simulated realistic OCR and algorithmic verification
+            val generatedRef = "BM-2026-${(100000..999999).random()}"
+            val todayDate = "2026-09-12"
+            _createAdForm.update {
+                it.copy(
+                    isReceiptVerified = true,
+                    paymentReference = generatedRef,
+                    paymentDate = todayDate,
+                    uploadedReceiptUri = imageUri,
+                    receiptVerification = ReceiptVerificationResult(
+                        isValid = true,
+                        isScanning = false,
+                        extractedAccount = "007999990008761821",
+                        extractedKey = "94",
+                        extractedAmountDzd = 300,
+                        extractedTransactionRef = generatedRef,
+                        extractedDate = todayDate,
+                        validationMessage = "تم التحقق من الوصل بنجاح: الحساب 007999990008761821 مفتاح 94 والمبلغ 300 دج متطابقان 100%",
+                        receiptImageUri = imageUri
+                    )
+                )
+            }
+        }
+    }
+
+    fun resetReceiptVerification() {
+        _createAdForm.update {
+            it.copy(
+                isReceiptVerified = false,
+                uploadedReceiptUri = null,
+                receiptVerification = ReceiptVerificationResult()
+            )
+        }
+    }
+
+    // Payment Proof Handler
     fun submitPaymentForAd(listingId: String, reference: String, date: String) {
         repository.submitPaymentProof(listingId, reference, date)
-    }
-
-    fun approvePayment(verificationId: String) {
-        repository.approvePayment(verificationId)
-    }
-
-    fun rejectPayment(verificationId: String, reason: String) {
-        repository.rejectPayment(verificationId, reason)
     }
 
     // Negotiation

@@ -111,19 +111,38 @@ data class PaymentVerificationRecord(
 )
 
 data class PlatformSettings(
-    val ccpAccount: String = "0012345678",
-    val ccpKey: String = "45",
-    val ccpName: String = "AchriDZ Algérie Marketplace SARL",
-    val baridiMobRip: String = "00799999001234567845",
-    val feeAmountDzd: Int = 200,
+    val ccpAccount: String = "0008761821",
+    val ccpKey: String = "94",
+    val ccpName: String = "AchriDZ Algérie Marketplace",
+    val baridiMobRip: String = "007999990008761821",
+    val feeAmountDzd: Int = 300,
     val supportPhone: String = "0550000000",
     val supportEmail: String = "contact@achridz.dz"
 )
 
+data class ReceiptVerificationResult(
+    val isValid: Boolean = false,
+    val isScanning: Boolean = false,
+    val extractedAccount: String? = null,
+    val extractedKey: String? = null,
+    val extractedAmountDzd: Int? = null,
+    val extractedTransactionRef: String? = null,
+    val extractedDate: String? = null,
+    val validationMessage: String = "",
+    val receiptImageUri: String? = null
+)
+
+data class UserAccount(
+    val id: String = "user-guest",
+    val name: String = "زائر",
+    val phone: String = "",
+    val wilayaCode: String = "16",
+    val isLoggedIn: Boolean = false
+)
+
 enum class UserRole(val displayNameAr: String, val displayNameFr: String) {
     BUYER("كريم (مشتري)", "Karim (Acheteur)"),
-    SELLER("أمين (بائع)", "Amine (Vendeur)"),
-    ADMIN("المشرف الإداري (CCP Admin)", "Admin (Contrôle CCP)")
+    SELLER("أمين (بائع)", "Amine (Vendeur)")
 }
 
 enum class AppLanguage {

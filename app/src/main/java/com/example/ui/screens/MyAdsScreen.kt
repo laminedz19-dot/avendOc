@@ -305,7 +305,7 @@ fun MyAdsScreen(
             onDismissRequest = { paymentDialogAd = null },
             title = {
                 Text(
-                    text = if (isArabic) "دفع رسوم النشر 200 دج" else "Paiement des frais 200 DZD",
+                    text = if (isArabic) "دفع رسوم النشر 300 دج" else "Paiement des frais 300 DZD",
                     fontWeight = FontWeight.Bold
                 )
             },

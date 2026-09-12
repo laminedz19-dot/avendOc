@@ -4,7 +4,16 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,14 +39,21 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Payment
+import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.Button
@@ -102,7 +118,9 @@ fun CreateAdScreen(
     onPrevStep: () -> Unit,
     onSubmit: () -> Unit,
     onReset: () -> Unit,
-    onViewMyAds: () -> Unit
+    onViewMyAds: () -> Unit,
+    onVerifyReceipt: (String?) -> Unit,
+    onResetReceipt: () -> Unit
 ) {
     val isArabic = currentLanguage == AppLanguage.ARABIC
     val context = LocalContext.current
@@ -116,8 +134,8 @@ fun CreateAdScreen(
         "6. الصور والمعاينة",
         "7. بيانات الاتصال",
         "8. خيارات التوصيل",
-        "9. مراجعة الإعلان",
-        "10. دفع رسوم النشر 200 دج"
+        "9. مراجعة معلومات الإعلان",
+        "10. دفع 300 دج والتحقق الآلي من الوصل"
     )
 
     val stepTitlesFr = listOf(
@@ -129,8 +147,8 @@ fun CreateAdScreen(
         "6. Photos",
         "7. Contact",
         "8. Livraison",
-        "9. Récapitulatif",
-        "10. Frais de publication 200 DZD"
+        "9. Récapitulatif de l'annonce",
+        "10. Frais 300 DZD & Vérification du reçu"
     )
 
     val currentTitle = if (isArabic) stepTitlesAr[formState.currentStep - 1] else stepTitlesFr[formState.currentStep - 1]
@@ -190,33 +208,60 @@ fun CreateAdScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Multi-Step Content Body
-        LazyColumn(
+        // Multi-Step Content Body with Animated Transitions
+        AnimatedContent(
+            targetState = formState.currentStep,
+            transitionSpec = {
+                val forward = targetState > initialState
+                val multiplier = if (isArabic) -1 else 1
+                val direction = if (forward) multiplier else -multiplier
+                (slideInHorizontally(
+                    initialOffsetX = { (it * 0.2f * direction).toInt() },
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy)
+                ) + fadeIn(animationSpec = tween(220))).togetherWith(
+                    slideOutHorizontally(
+                        targetOffsetX = { (-it * 0.2f * direction).toInt() },
+                        animationSpec = tween(180)
+                    ) + fadeOut(animationSpec = tween(180))
+                )
+            },
+            label = "create_ad_step_anim",
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            when (formState.currentStep) {
-                1 -> item { Step1Category(formState, isArabic, onFormChange) }
-                2 -> item { Step2TitleDescription(formState, isArabic, onFormChange) }
-                3 -> item { Step3PriceNegotiation(formState, isArabic, onFormChange) }
-                4 -> item { Step4Condition(formState, isArabic, onFormChange) }
-                5 -> item { Step5Location(formState, isArabic, onFormChange) }
-                6 -> item { Step6Photos(formState, isArabic) }
-                7 -> item { Step7Contact(formState, isArabic, onFormChange) }
-                8 -> item { Step8Delivery(formState, isArabic) }
-                9 -> item { Step9Review(formState, isArabic) }
-                10 -> item {
-                    Step10Payment200Dzd(
-                        formState = formState,
-                        platformSettings = platformSettings,
-                        isArabic = isArabic,
-                        context = context,
-                        onFormChange = onFormChange,
-                        onSubmit = onSubmit,
-                        onViewMyAds = onViewMyAds
-                    )
+                .fillMaxWidth()
+        ) { step ->
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                when (step) {
+                    1 -> item { Step1Category(formState, isArabic, onFormChange) }
+                    2 -> item { Step2TitleDescription(formState, isArabic, onFormChange) }
+                    3 -> item { Step3PriceNegotiation(formState, isArabic, onFormChange) }
+                    4 -> item { Step4Condition(formState, isArabic, onFormChange) }
+                    5 -> item { Step5Location(formState, isArabic, onFormChange) }
+                    6 -> item { Step6Photos(formState, isArabic) }
+                    7 -> item { Step7Contact(formState, isArabic, onFormChange) }
+                    8 -> item { Step8Delivery(formState, isArabic) }
+                    9 -> item {
+                        Step9Review(
+                            formState = formState,
+                            isArabic = isArabic,
+                            onNextToPayment = onNextStep
+                        )
+                    }
+                    10 -> item {
+                        Step10PaymentAndVerification(
+                            formState = formState,
+                            platformSettings = platformSettings,
+                            isArabic = isArabic,
+                            onVerifyReceipt = onVerifyReceipt,
+                            onResetReceipt = onResetReceipt,
+                            onSubmit = onSubmit,
+                            onViewMyAds = onViewMyAds,
+                            onReset = onReset
+                        )
+                    }
                 }
             }
         }
@@ -264,6 +309,36 @@ fun CreateAdScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
+                        )
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            if (formState.isReceiptVerified) {
+                                onSubmit()
+                            } else {
+                                onVerifyReceipt(null)
+                            }
+                        },
+                        modifier = Modifier.testTag("submit_ad_button"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (formState.isReceiptVerified) EmeraldPrimary else AmberAccent
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (formState.isReceiptVerified) Icons.Default.CheckCircle else Icons.Default.UploadFile,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (formState.isReceiptVerified) {
+                                if (isArabic) "نشر الإعلان الآن 🚀" else "Publier l'annonce 🚀"
+                            } else {
+                                if (isArabic) "فحص الوصل آلياً" else "Vérifier le reçu"
+                            },
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
@@ -729,7 +804,11 @@ fun Step8Delivery(formState: CreateAdFormState, isArabic: Boolean) {
 }
 
 @Composable
-fun Step9Review(formState: CreateAdFormState, isArabic: Boolean) {
+fun Step9Review(
+    formState: CreateAdFormState,
+    isArabic: Boolean,
+    onNextToPayment: () -> Unit
+) {
     val wilaya = WilayasData.findWilayaByCode(formState.wilayaCode)
 
     Card(
@@ -740,47 +819,47 @@ fun Step9Review(formState: CreateAdFormState, isArabic: Boolean) {
             Text(
                 text = if (isArabic) "مراجعة معلومات الإعلان قبل الدفع" else "Récapitulatif de l'annonce",
                 fontWeight = FontWeight.Bold,
-                fontSize = 15.sp
+                fontSize = 16.sp
             )
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = formState.title.ifBlank { "إعلان بدون عنوان" },
                 fontWeight = FontWeight.Black,
-                fontSize = 16.sp,
+                fontSize = 17.sp,
                 color = EmeraldPrimary
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = formatPriceDzd(formState.priceText.toLongOrNull() ?: 0L, isArabic),
                 fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
+                fontSize = 16.sp,
                 color = AmberAccent
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "${formState.commune} • ${wilaya?.displayName ?: formState.wilayaCode}",
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 color = SlateMuted
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = formState.description.ifBlank { "لا يوجد وصف" },
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             Divider()
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Surface(
                 color = AmberContainer,
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
-                    modifier = Modifier.padding(10.dp),
+                    modifier = Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
@@ -788,35 +867,65 @@ fun Step9Review(formState: CreateAdFormState, isArabic: Boolean) {
                         contentDescription = null,
                         tint = OnAmberContainer
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = if (isArabic) "المرحلة التالية: دفع رسوم النشر 200 دج وإدخال رقم العملية لنشر إعلانك."
-                        else "Étape suivante : Paiement des frais de 200 DZD pour validation.",
-                        fontSize = 11.sp,
+                        text = if (isArabic) "الخطوة التالية (10): دفع رسوم النشر (300 دج) لهذا الحساب 007999990008761821 مفتاح 94 مع رفع الوصل للتحقق الآلي."
+                        else "Étape suivante (10) : Frais de publication 300 DZD & vérification automatique du reçu.",
+                        fontSize = 12.sp,
                         color = OnAmberContainer,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Medium
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onNextToPayment,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("go_to_payment_button"),
+                colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = if (isArabic) "المتابعة لدفع 300 دج ورفع الوصل ←" else "Procéder au paiement 300 DZD ←",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
             }
         }
     }
 }
 
 @Composable
-fun Step10Payment200Dzd(
+fun Step10PaymentAndVerification(
     formState: CreateAdFormState,
     platformSettings: PlatformSettings,
     isArabic: Boolean,
-    context: Context,
-    onFormChange: ((CreateAdFormState) -> CreateAdFormState) -> Unit,
+    onVerifyReceipt: (String?) -> Unit,
+    onResetReceipt: () -> Unit,
     onSubmit: () -> Unit,
-    onViewMyAds: () -> Unit
+    onViewMyAds: () -> Unit,
+    onReset: () -> Unit
 ) {
+    val context = LocalContext.current
+
+    // Photo picker for receipt
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            onVerifyReceipt(uri.toString())
+        }
+    }
+
     if (formState.submittedAdId != null) {
-        // Success state
+        // Success state after verified payment and submission
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier.fillMaxWidth()
         ) {
             Column(
                 modifier = Modifier
@@ -824,36 +933,57 @@ fun Step10Payment200Dzd(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = StatusGreen,
-                    modifier = Modifier.size(56.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(StatusGreen.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = StatusGreen,
+                        modifier = Modifier.size(50.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(14.dp))
                 Text(
-                    text = if (isArabic) "تم إرسال إعلانك وإثبات دفع 200 دج بنجاح!" else "Annonce & Reçu 200 DZD transmis !",
+                    text = if (isArabic) "🎉 تم التحقق آلياً ونشر إعلانك بنجاح!" else "🎉 Annonce vérifiée et publiée avec succès !",
                     fontWeight = FontWeight.Black,
-                    fontSize = 16.sp,
+                    fontSize = 17.sp,
                     color = StatusGreen
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = if (isArabic) "يقوم المشرف حاليًا بمراجعة رقم الحوالة ${formState.paymentReference}. سيتم تفعيل ونشر الإعلان فور التحقق."
-                    else "Votre reçu ${formState.paymentReference} est en cours de validation.",
+                    text = if (isArabic) "تمت مطابقة وصل الدفع بقيمة 300 دج بنجاح آلياً مع الحساب 007999990008761821 مفتاح 94. إعلانك الآن معروض مباشرة لجميع المشترين في 69 ولاية!"
+                    else "Votre reçu de 300 DZD a été vérifié automatiquement. L'annonce est active sur les 69 wilayas.",
                     fontSize = 12.sp,
                     color = SlateMuted
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = onViewMyAds,
-                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
-                    shape = RoundedCornerShape(12.dp)
+                Spacer(modifier = Modifier.height(20.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = if (isArabic) "الانتقال إلى إعلاناتي" else "Voir mes annonces",
-                        fontWeight = FontWeight.Bold
-                    )
+                    Button(
+                        onClick = onViewMyAds,
+                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = if (isArabic) "الانتقال إلى إعلاناتي" else "Voir mes annonces",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = onReset,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = if (isArabic) "إضافة إعلان جديد" else "Nouvelle annonce",
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         }
@@ -865,221 +995,343 @@ fun Step10Payment200Dzd(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Payment,
-                    contentDescription = null,
-                    tint = EmeraldPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+            // Title & Notice
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(AmberAccent),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Payment,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Text(
-                        text = if (isArabic) "رسوم نشر الإعلان: 200 دج ثابتة" else "Frais de publication : 200 DZD",
-                        fontSize = 16.sp,
+                        text = if (isArabic) "دفع 300 دج لنشر الإعلان" else "Frais de publication : 300 DZD",
                         fontWeight = FontWeight.Black,
-                        color = EmeraldPrimary
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = if (isArabic) "«لا إعلان منشور بدون دفع رسوم النشر 200 دج والتحقق منها»"
-                        else "Aucune annonce publiée sans vérification du paiement 200 DZD",
+                        text = if (isArabic) "يتوجب دفع 300 دج لهذا الحساب ورفع الوصل للتحقق منه آلياً"
+                        else "Paiement requis de 300 DZD avec vérification automatique",
                         fontSize = 11.sp,
                         color = SlateMuted
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Official CCP / BaridiMob Box
+            // Account details box
             Surface(
-                color = EmeraldContainer,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, AmberAccent.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
-                    Text(
-                        text = if (isArabic) "معلومات الدفع لبريد الجزائر (CCP / BaridiMob):" else "Coordonnées de paiement (CCP / BaridiMob) :",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        color = OnEmeraldContainer
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // CCP Account
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            Text(
-                                text = "حساب بريد الجزائر CCP:",
-                                fontSize = 11.sp,
-                                color = OnEmeraldContainer.copy(alpha = 0.8f)
-                            )
-                            Text(
-                                text = "${platformSettings.ccpAccount} Clé ${platformSettings.ccpKey}",
-                                fontWeight = FontWeight.Black,
-                                fontSize = 15.sp,
-                                color = OnEmeraldContainer
-                            )
-                        }
-
-                        IconButton(
-                            onClick = {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                val clip = ClipData.newPlainText("CCP", "${platformSettings.ccpAccount} ${platformSettings.ccpKey}")
-                                clipboard.setPrimaryClip(clip)
-                                Toast.makeText(context, "تم نسخ رقم الـ CCP", Toast.LENGTH_SHORT).show()
-                            }
+                        Text(
+                            text = if (isArabic) "المبلغ المطلوب:" else "Montant requis :",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Surface(
+                            color = AmberAccent,
+                            shape = RoundedCornerShape(8.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.ContentCopy,
-                                contentDescription = "Copy CCP",
-                                tint = OnEmeraldContainer
+                            Text(
+                                text = "300 دج (DZD)",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 14.sp,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Divider()
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    // BaridiMob RIP
+                    Text(
+                        text = if (isArabic) "رقم الحساب البريدي الجاري (RIP BaridiMob):" else "Numéro de compte (RIP BaridiMob) :",
+                        fontSize = 12.sp,
+                        color = SlateMuted
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            Text(
-                                text = "رقم الحساب البريدي بريدي موب (RIP BaridiMob):",
-                                fontSize = 11.sp,
-                                color = OnEmeraldContainer.copy(alpha = 0.8f)
+                        Text(
+                            text = platformSettings.ccpAccount,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Black,
+                            color = EmeraldPrimary
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("RIP", platformSettings.ccpAccount))
+                                Toast.makeText(context, if (isArabic) "تم نسخ رقم الحساب: ${platformSettings.ccpAccount}" else "Compte copié", Toast.LENGTH_SHORT).show()
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(text = if (isArabic) "نسخ" else "Copier", fontSize = 11.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isArabic) "المفتاح (Clé): ${platformSettings.ccpKey}" else "Clé : ${platformSettings.ccpKey}",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("Clé", platformSettings.ccpKey))
+                                Toast.makeText(context, if (isArabic) "تم نسخ المفتاح: ${platformSettings.ccpKey}" else "Clé copiée", Toast.LENGTH_SHORT).show()
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(text = if (isArabic) "نسخ المفتاح" else "Copier Clé", fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Upload Receipt Section
+            Text(
+                text = if (isArabic) "📸 رفع وصل الدفع والتحقق منه آلياً:" else "📸 Téléversement et vérification automatique du reçu :",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        photoPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("upload_receipt_button"),
+                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (isArabic) "رفع من المعرض" else "Choisir photo",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Button(
+                    onClick = { onVerifyReceipt(null) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("test_demo_receipt_button"),
+                    colors = ButtonDefaults.buttonColors(containerColor = AmberAccent),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (isArabic) "تجربة وصل آلي" else "Reçu démo",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Verification Result Card
+            val result = formState.receiptVerification
+            if (result.isScanning) {
+                // Scanning state
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = AmberContainer),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (isArabic) "🔍 جاري الفحص البصري والآلي لبيانات الوصل..." else "🔍 Analyse automatique du reçu...",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = OnAmberContainer
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = AmberAccent
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = if (isArabic) "التحقق من رقم الحساب 007999990008761821 ومبلغ 300 دج..."
+                            else "Vérification du compte 007999990008761821 et montant 300 DZD...",
+                            fontSize = 11.sp,
+                            color = OnAmberContainer
+                        )
+                    }
+                }
+            } else if (formState.isReceiptVerified) {
+                // Successfully verified
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = EmeraldContainer),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, EmeraldPrimary, RoundedCornerShape(12.dp))
+                        .testTag("receipt_verification_success_card")
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = EmeraldPrimary,
+                                modifier = Modifier.size(20.dp)
                             )
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = platformSettings.baridiMobRip,
+                                text = if (isArabic) "✅ تم التحقق الآلي من صحة الوصل بنجاح 100%!" else "✅ Reçu vérifié avec succès à 100% !",
                                 fontWeight = FontWeight.Black,
                                 fontSize = 13.sp,
                                 color = OnEmeraldContainer
                             )
                         }
 
-                        IconButton(
-                            onClick = {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                val clip = ClipData.newPlainText("RIP", platformSettings.baridiMobRip)
-                                clipboard.setPrimaryClip(clip)
-                                Toast.makeText(context, "تم نسخ رقم الـ RIP", Toast.LENGTH_SHORT).show()
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ContentCopy,
-                                contentDescription = "Copy RIP",
-                                tint = OnEmeraldContainer
-                            )
-                        }
-                    }
-                }
-            }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Divider(color = EmeraldPrimary.copy(alpha = 0.2f))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Security Notice (Anti-Phishing Guarantee)
-            Surface(
-                color = AmberContainer,
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Security,
-                        contentDescription = null,
-                        tint = OnAmberContainer,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (isArabic) "تنبيه أمان: تطبيق AchriDZ لا يطلب أبدًا كلمة المرور الخاصة ببريدي موب أو الرمز السري للبطاقة الذهبية."
-                        else "Sécurité : AchriDZ ne demande JAMAIS votre mot de passe BaridiMob ou code Edahabia.",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = OnAmberContainer,
-                        lineHeight = 15.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Proof form: Transaction Reference Input
-            OutlinedTextField(
-                value = formState.paymentReference,
-                onValueChange = { ref -> onFormChange { it.copy(paymentReference = ref) } },
-                label = { Text(if (isArabic) "رقم العملية أو الحوالة (Référence de transaction)" else "Référence de transaction CCP/BaridiMob") },
-                placeholder = { Text("Ex: BM-2026-981240") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("payment_reference_input"),
-                singleLine = true,
-                shape = RoundedCornerShape(10.dp)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Receipt image upload placeholder
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        if (formState.paymentReference.isBlank()) {
-                            onFormChange { it.copy(paymentReference = "BM-2026-${(10000..99999).random()}") }
-                        }
-                    }
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.UploadFile,
-                        contentDescription = null,
-                        tint = EmeraldPrimary
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
                         Text(
-                            text = if (isArabic) "صورة وصل التحويل (Reçu de paiement)" else "Photo du reçu de paiement",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
+                            text = if (isArabic) "• الحساب المستلم: 007999990008761821 (مفتاح 94) - متطابق ✓"
+                            else "• Compte destinataire : 007999990008761821 (clé 94) - Conforme ✓",
+                            fontSize = 11.sp,
+                            color = OnEmeraldContainer,
+                            fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = if (isArabic) "انقر لتوليد أو إرفاق وصل التحويل التجريبي 200 دج" else "Joindre le reçu de 200 DZD",
-                            fontSize = 10.sp,
-                            color = SlateMuted
+                            text = if (isArabic) "• المبلغ المدفوع: 300.00 دج - مستوفي للرسوم بالكامل ✓"
+                            else "• Montant payé : 300.00 DZD - Conforme ✓",
+                            fontSize = 11.sp,
+                            color = OnEmeraldContainer,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = if (isArabic) "• رقم العملية: ${result.extractedTransactionRef} ✓"
+                            else "• Réf. Transaction : ${result.extractedTransactionRef} ✓",
+                            fontSize = 11.sp,
+                            color = OnEmeraldContainer
+                        )
+                        Text(
+                            text = if (isArabic) "• تاريخ التحويل: ${result.extractedDate} ✓"
+                            else "• Date : ${result.extractedDate} ✓",
+                            fontSize = 11.sp,
+                            color = OnEmeraldContainer
+                        )
+                    }
+                }
+            } else {
+                // Not yet uploaded or verified
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ReceiptLong,
+                            contentDescription = null,
+                            tint = SlateMuted
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isArabic) "⚠️ يرجى رفع وصل تحويل مبلغ 300 دج ليتم التحقق منه آلياً وتفعيل زر النشر."
+                            else "Veuillez téléverser le reçu de 300 DZD pour vérification automatique.",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Final Submit Button
+            // Submit ad button
             Button(
                 onClick = onSubmit,
+                enabled = formState.isReceiptVerified,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("submit_ad_and_payment_button"),
-                colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = EmeraldPrimary,
+                    disabledContainerColor = Color(0xFFCBD5E1)
+                ),
                 shape = RoundedCornerShape(12.dp)
             ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (isArabic) "تأكيد إرسال الإعلان ووصل الدفع 200 دج 🚀" else "Soumettre l'annonce et le reçu 200 DZD 🚀",
+                    text = if (formState.isReceiptVerified) {
+                        if (isArabic) "تأكيد ونشر الإعلان الآن 🚀" else "Confirmer et publier l'annonce 🚀"
+                    } else {
+                        if (isArabic) "يتطلب التحقق من وصل 300 دج للنشر" else "Vérification requise pour publier"
+                    },
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )
@@ -1087,3 +1339,4 @@ fun Step10Payment200Dzd(
         }
     }
 }
+

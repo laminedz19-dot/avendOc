@@ -1,6 +1,20 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -244,12 +258,22 @@ fun HomeScreen(
             }
 
             Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = "${listings.size} ${if (isArabic) "إعلان" else "annonces"}",
-                fontSize = 12.sp,
-                color = SlateMuted,
-                fontWeight = FontWeight.Medium
-            )
+            AnimatedContent(
+                targetState = listings.size,
+                transitionSpec = {
+                    (slideInVertically { it / 2 } + fadeIn(tween(200))).togetherWith(
+                        slideOutVertically { -it / 2 } + fadeOut(tween(180))
+                    )
+                },
+                label = "listing_count_anim"
+            ) { count ->
+                Text(
+                    text = "$count ${if (isArabic) "إعلان متاح" else "annonces"}",
+                    fontSize = 12.sp,
+                    color = SlateMuted,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
 
         // Listings List
@@ -264,13 +288,15 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(listings, key = { it.id }) { item ->
-                    AdCardItem(
-                        item = item,
-                        isFavorite = favoriteIds.contains(item.id),
-                        isArabic = isArabic,
-                        onToggleFavorite = { onToggleFavorite(item.id) },
-                        onClick = { onListingClick(item) }
-                    )
+                    Box(modifier = Modifier.animateItem()) {
+                        AdCardItem(
+                            item = item,
+                            isFavorite = favoriteIds.contains(item.id),
+                            isArabic = isArabic,
+                            onToggleFavorite = { onToggleFavorite(item.id) },
+                            onClick = { onListingClick(item) }
+                        )
+                    }
                 }
             }
         }
@@ -303,11 +329,41 @@ fun CategoryPillsRow(
     ) {
         item {
             val isAllSelected = selectedCategory == null
+            val bgColor by animateColorAsState(
+                targetValue = if (isAllSelected) EmeraldPrimary else MaterialTheme.colorScheme.surface,
+                animationSpec = tween(220),
+                label = "all_bg_color"
+            )
+            val textColor by animateColorAsState(
+                targetValue = if (isAllSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                animationSpec = tween(220),
+                label = "all_text_color"
+            )
+            val iconColor by animateColorAsState(
+                targetValue = if (isAllSelected) Color.White else EmeraldPrimary,
+                animationSpec = tween(220),
+                label = "all_icon_color"
+            )
+            val pillScale by animateFloatAsState(
+                targetValue = if (isAllSelected) 1.04f else 1.0f,
+                animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioMediumBouncy),
+                label = "all_pill_scale"
+            )
+            val elevation by animateDpAsState(
+                targetValue = if (isAllSelected) 3.dp else 0.5.dp,
+                animationSpec = tween(220),
+                label = "all_pill_elevation"
+            )
+
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = if (isAllSelected) EmeraldPrimary else MaterialTheme.colorScheme.surface,
-                shadowElevation = if (isAllSelected) 2.dp else 0.5.dp,
+                color = bgColor,
+                shadowElevation = elevation,
                 modifier = Modifier
+                    .graphicsLayer {
+                        scaleX = pillScale
+                        scaleY = pillScale
+                    }
                     .clip(RoundedCornerShape(20.dp))
                     .clickable { onCategorySelect(null) }
             ) {
@@ -318,7 +374,7 @@ fun CategoryPillsRow(
                     Icon(
                         imageVector = Icons.Default.Category,
                         contentDescription = null,
-                        tint = if (isAllSelected) Color.White else EmeraldPrimary,
+                        tint = iconColor,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -326,7 +382,7 @@ fun CategoryPillsRow(
                         text = if (isArabic) "الكل" else "Tout",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isAllSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                        color = textColor
                     )
                 }
             }
@@ -335,12 +391,41 @@ fun CategoryPillsRow(
         items(CategoryType.values()) { category ->
             val isSelected = selectedCategory == category
             val icon = getCategoryIcon(category)
+            val bgColor by animateColorAsState(
+                targetValue = if (isSelected) EmeraldPrimary else MaterialTheme.colorScheme.surface,
+                animationSpec = tween(220),
+                label = "cat_bg_color"
+            )
+            val textColor by animateColorAsState(
+                targetValue = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                animationSpec = tween(220),
+                label = "cat_text_color"
+            )
+            val iconColor by animateColorAsState(
+                targetValue = if (isSelected) Color.White else EmeraldPrimary,
+                animationSpec = tween(220),
+                label = "cat_icon_color"
+            )
+            val pillScale by animateFloatAsState(
+                targetValue = if (isSelected) 1.04f else 1.0f,
+                animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioMediumBouncy),
+                label = "cat_pill_scale"
+            )
+            val elevation by animateDpAsState(
+                targetValue = if (isSelected) 3.dp else 0.5.dp,
+                animationSpec = tween(220),
+                label = "cat_pill_elevation"
+            )
 
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = if (isSelected) EmeraldPrimary else MaterialTheme.colorScheme.surface,
-                shadowElevation = if (isSelected) 2.dp else 0.5.dp,
+                color = bgColor,
+                shadowElevation = elevation,
                 modifier = Modifier
+                    .graphicsLayer {
+                        scaleX = pillScale
+                        scaleY = pillScale
+                    }
                     .clip(RoundedCornerShape(20.dp))
                     .clickable { onCategorySelect(category) }
             ) {
@@ -351,7 +436,7 @@ fun CategoryPillsRow(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = if (isSelected) Color.White else EmeraldPrimary,
+                        tint = iconColor,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -359,7 +444,7 @@ fun CategoryPillsRow(
                         text = if (isArabic) category.titleAr else category.titleFr,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                        color = textColor
                     )
                 }
             }
@@ -375,6 +460,15 @@ fun AdCardItem(
     onToggleFavorite: () -> Unit,
     onClick: () -> Unit
 ) {
+    val favoriteScale by animateFloatAsState(
+        targetValue = if (isFavorite) 1.3f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "fav_scale"
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -382,7 +476,7 @@ fun AdCardItem(
             .clickable { onClick() }
             .testTag("ad_card_${item.id}"),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp, pressedElevation = 4.dp),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -410,7 +504,12 @@ fun AdCardItem(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "Favorite",
                         tint = if (isFavorite) AmberAccent else SlateMuted,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier
+                            .size(20.dp)
+                            .graphicsLayer {
+                                scaleX = favoriteScale
+                                scaleY = favoriteScale
+                            }
                     )
                 }
             }
