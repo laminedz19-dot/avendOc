@@ -113,6 +113,7 @@ fun AdminLoginScreen(onSignedIn: () -> Unit) {
                                 .addOnSuccessListener { tokenResult ->
                                     isLoading = false
                                     if (tokenResult.claims["admin"] == true) {
+                                        registerCurrentAdminMessagingToken()
                                         onSignedIn()
                                     } else {
                                         FirebaseAuth.getInstance().signOut()

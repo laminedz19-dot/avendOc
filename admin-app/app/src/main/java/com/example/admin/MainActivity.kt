@@ -38,6 +38,7 @@ class MainActivity : ComponentActivity() {
                                     isAdmin = token.claims["admin"] == true
                                     isCheckingSession = false
                                     if (!isAdmin) FirebaseAuth.getInstance().signOut()
+                                    else registerCurrentAdminMessagingToken()
                                 }
                                 .addOnFailureListener {
                                     FirebaseAuth.getInstance().signOut()

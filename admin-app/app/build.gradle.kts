@@ -103,6 +103,7 @@ dependencies {
   implementation(libs.firebase.ai)
   implementation(libs.firebase.auth)
   implementation(libs.firebase.firestore)
+  implementation(libs.firebase.messaging)
 
   // Uncomment ALL FOUR of the following dependencies together to use Google
   // Sign-In via Credential Manager:

@@ -19,14 +19,18 @@ object AdminNotificationHelper {
     }
 
     fun notifyNewListing(context: Context, title: String) {
+        showRemoteNotification(context, "إعلان جديد يحتاج المراجعة", title, null)
+    }
+
+    fun showRemoteNotification(context: Context, title: String, body: String, listingId: String?) {
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("إعلان جديد يحتاج المراجعة")
-            .setContentText(title)
+            .setContentTitle(title)
+            .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .build()
-        NotificationManagerCompat.from(context).notify(title.hashCode(), notification)
+        NotificationManagerCompat.from(context).notify((listingId ?: body).hashCode(), notification)
     }
 }
