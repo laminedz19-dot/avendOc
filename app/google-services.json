@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "176930344690",
+    "project_id": "achridz-2c628",
+    "storage_bucket": "achridz-2c628.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:176930344690:android:246865186aca2df59b0a6b",
+        "android_client_info": {
+          "package_name": "com.aistudio.achridz.marketplace"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCejMerwEZ7AeosqxYZMihUjF_ZM-UeX-Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:176930344690:android:dd197e8cee3cf04b9b0a6b",
+        "android_client_info": {
+          "package_name": "com.avendoc.admin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCejMerwEZ7AeosqxYZMihUjF_ZM-UeX-Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:176930344690:android:246865186aca2df59b0a6b",
+        "android_client_info": {
+          "package_name": "Lminedz.rahem"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCejMerwEZ7AeosqxYZMihUjF_ZM-UeX-Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
