@@ -46,7 +46,7 @@ jobs:
           fi
 
       - name: Validate Firebase configuration
-        run: ./gradlew :app:validateGoogleServices --stacktrace
+        run: ./gradlew :app:validateGoogleServices --stacktrace --no-configuration-cache
 
       - name: Build User Debug APK
         run: ./gradlew assembleDebug -x validateSigningDebug --stacktrace
@@ -87,7 +87,7 @@ jobs:
 
       - name: Validate admin Firebase configuration
         working-directory: admin-app
-        run: ./gradlew :app:validateGoogleServices --stacktrace
+        run: ./gradlew :app:validateGoogleServices --stacktrace --no-configuration-cache
 
       - name: Build Admin Debug APK
         working-directory: admin-app
@@ -99,4 +99,3 @@ jobs:
           name: AchriDZ-Admin-Debug-APK
           path: admin-app/app/build/outputs/apk/debug/*.apk
           retention-days: 14
-          
