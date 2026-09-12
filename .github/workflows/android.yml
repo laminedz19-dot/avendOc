@@ -29,7 +29,7 @@ jobs:
       - name: Create dummy .env file if missing
         run: |
           if [ ! -f .env ]; then
-            echo "GEMINI_API_KEY=" > .env
+            echo 'GEMINI_API_KEY=""' > .env
           fi
 
       - name: Inject google-services.json from GitHub Secret (if present)
