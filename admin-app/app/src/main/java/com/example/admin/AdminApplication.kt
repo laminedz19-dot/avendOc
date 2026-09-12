@@ -7,6 +7,7 @@ class AdminApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         context = applicationContext
+        AdminNotificationHelper.createChannel(applicationContext)
     }
     companion object { lateinit var context: Context }
 }

@@ -13,12 +13,20 @@ class AdminRepository {
     val listings: StateFlow<List<AdminListing>> = _listings.asStateFlow()
     private var listener: ListenerRegistration? = null
     private var db: FirebaseFirestore? = null
+    private var isInitialSnapshot = true
 
     init {
         try {
             if (FirebaseApp.getApps(com.example.admin.AdminApplication.context).isNotEmpty()) {
                 db = FirebaseFirestore.getInstance()
                 listener = db!!.collection("listings").addSnapshotListener { snapshot, _ ->
+                    if (snapshot != null && !isInitialSnapshot) {
+                        snapshot.documentChanges
+                            .filter { it.type == com.google.firebase.firestore.DocumentChange.Type.ADDED }
+                            .mapNotNull { it.document.takeIf { doc -> doc.getString("status") == "PAYMENT_PENDING" }?.getString("title") }
+                            .forEach { title -> AdminNotificationHelper.notifyNewListing(AdminApplication.context, title) }
+                    }
+                    isInitialSnapshot = false
                     _listings.value = snapshot?.documents?.mapNotNull { doc ->
                         AdminListing(
                             id = doc.id,
