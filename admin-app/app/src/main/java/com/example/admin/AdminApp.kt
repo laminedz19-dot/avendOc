@@ -63,10 +63,21 @@ fun AdminApp() {
         }
     }
     val listings by repository.listings.collectAsState()
+    val users by repository.users.collectAsState()
     val pending = listings.filter { it.status == "PAYMENT_PENDING" }
     val active = listings.filter { it.status == "PUBLISHED" }
     var rejectId by remember { mutableStateOf<String?>(null) }
     var chartMode by remember { mutableStateOf(ChartMode.BY_DATE) }
+    var showUsers by remember { mutableStateOf(false) }
+
+    if (showUsers) {
+        UserManagementScreen(
+            users = users,
+            onBack = { showUsers = false },
+            onSetBlocked = repository::setUserBlocked
+        )
+        return
+    }
 
     Column(Modifier.fillMaxSize().padding(18.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -75,6 +86,7 @@ fun AdminApp() {
                 Text("لوحة إدارة avendOc", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color(0xFF087F5B))
                 Text("${pending.size} إعلان ينتظر الموافقة", fontSize = 13.sp, color = Color.Gray)
             }
+            TextButton(onClick = { showUsers = true }) { Text("إدارة المستخدمين") }
         }
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
