@@ -31,12 +31,12 @@ jobs:
           if [ ! -f .env ]; then
             echo "GEMINI_API_KEY=" > .env
           fi
-                - name: Create debug keystore
+
+      - name: Create debug keystore
         run: |
           keytool -genkey -v -keystore debug.keystore -keyalg RSA -keysize 2048 -validity 10000 \
             -alias androiddebugkey -keypass android -storepass android \
             -dname "CN=Android Debug,O=Android,C=US"
-      
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
