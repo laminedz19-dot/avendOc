@@ -63,6 +63,7 @@ fun AdminApp() {
     }
     val listings by repository.listings.collectAsState()
     val users by repository.users.collectAsState()
+    val connectionError by repository.connectionError.collectAsState()
     val pending = listings.filter { it.status == "PAYMENT_PENDING" }
     val active = listings.filter { it.status == "PUBLISHED" }
     var rejectId by remember { mutableStateOf<String?>(null) }
@@ -79,6 +80,20 @@ fun AdminApp() {
     }
 
     Column(Modifier.fillMaxSize().padding(18.dp)) {
+        connectionError?.let { message ->
+            Card(
+                Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF1F2))
+            ) {
+                Text(
+                    text = message,
+                    modifier = Modifier.padding(12.dp),
+                    color = Color(0xFFB91C1C),
+                    fontSize = 12.sp
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+        }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.AdminPanelSettings, contentDescription = null, tint = Color(0xFF087F5B))
             Column(Modifier.padding(start = 10.dp)) {

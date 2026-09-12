@@ -1,5 +1,6 @@
 package com.example.admin
 
+import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -13,15 +14,24 @@ class AdminRepository {
     val listings: StateFlow<List<AdminListing>> = _listings.asStateFlow()
     private val _users = MutableStateFlow<List<AdminUser>>(emptyList())
     val users: StateFlow<List<AdminUser>> = _users.asStateFlow()
+    private val _connectionError = MutableStateFlow<String?>(null)
+    val connectionError: StateFlow<String?> = _connectionError.asStateFlow()
     private var listener: ListenerRegistration? = null
     private var db: FirebaseFirestore? = null
     private var isInitialSnapshot = true
 
     init {
         try {
-            if (FirebaseApp.getApps(com.example.admin.AdminApplication.context).isNotEmpty()) {
+            if (FirebaseApp.getApps(AdminApplication.context).isEmpty()) {
+                _connectionError.value = "Firebase غير مهيأ. أضف google-services.json الخاص بالمشروع."
+            } else {
                 db = FirebaseFirestore.getInstance()
-                listener = db!!.collection("listings").addSnapshotListener { snapshot, _ ->
+                listener = db!!.collection("listings").addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        reportFirestoreError("الإعلانات", error)
+                        return@addSnapshotListener
+                    }
+                    _connectionError.value = null
                     if (snapshot != null && !isInitialSnapshot) {
                         snapshot.documentChanges
                             .filter { it.type == com.google.firebase.firestore.DocumentChange.Type.ADDED }
@@ -29,7 +39,7 @@ class AdminRepository {
                             .forEach { title -> AdminNotificationHelper.notifyNewListing(AdminApplication.context, title) }
                     }
                     isInitialSnapshot = false
-                    _listings.value = snapshot?.documents?.mapNotNull { doc ->
+                    _listings.value = snapshot?.documents?.map { doc ->
                         AdminListing(
                             id = doc.id,
                             title = doc.getString("title") ?: "بدون عنوان",
@@ -45,7 +55,12 @@ class AdminRepository {
                         )
                     } ?: emptyList()
                 }
-                db!!.collection("users").addSnapshotListener { snapshot, _ ->
+                db!!.collection("users").addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        reportFirestoreError("المستخدمين", error)
+                        return@addSnapshotListener
+                    }
+                    _connectionError.value = null
                     _users.value = snapshot?.documents?.map { doc ->
                         AdminUser(
                             id = doc.id,
@@ -56,17 +71,27 @@ class AdminRepository {
                     } ?: emptyList()
                 }
             }
-        } catch (_: Exception) { }
+        } catch (error: Exception) {
+            reportFirestoreError("Firebase", error)
+        }
+    }
+
+    private fun reportFirestoreError(source: String, error: Exception) {
+        Log.e(TAG, "Firestore listener failed for $source", error)
+        _connectionError.value = "تعذر الاتصال بقاعدة البيانات ($source): ${error.localizedMessage ?: "تحقق من Firebase والصلاحيات"}"
     }
 
     fun approve(id: String) = updateStatus(id, "PUBLISHED")
     fun reject(id: String) = updateStatus(id, "REJECTED")
     fun setUserBlocked(id: String, blocked: Boolean) {
         db?.collection("users")?.document(id)?.update("isBlocked", blocked)
+            ?.addOnFailureListener { reportFirestoreError("تحديث حظر المستخدم", it) }
     }
     private fun updateStatus(id: String, status: String) {
         db?.collection("listings")?.document(id)?.update("status", status)
+            ?.addOnFailureListener { reportFirestoreError("تحديث حالة الإعلان", it) }
     }
+    companion object { private const val TAG = "AdminRepository" }
 }
 
 data class AdminListing(
