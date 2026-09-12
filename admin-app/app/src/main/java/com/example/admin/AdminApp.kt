@@ -14,6 +14,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -43,6 +45,7 @@ fun AdminApp() {
     val repository = remember { AdminRepository() }
     val listings by repository.listings.collectAsState()
     val pending = listings.filter { it.status == "PAYMENT_PENDING" }
+    val active = listings.filter { it.status == "PUBLISHED" }
     var rejectId by remember { mutableStateOf<String?>(null) }
 
     Column(Modifier.fillMaxSize().padding(18.dp)) {
@@ -54,6 +57,23 @@ fun AdminApp() {
             }
         }
         Spacer(Modifier.height(16.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            StatCard(
+                modifier = Modifier.weight(1f),
+                title = "الإعلانات النشطة",
+                value = active.size,
+                icon = { Icon(Icons.Default.Storefront, contentDescription = null, tint = Color(0xFF087F5B)) }
+            )
+            StatCard(
+                modifier = Modifier.weight(1f),
+                title = "الإعلانات المعلقة",
+                value = pending.size,
+                icon = { Icon(Icons.Default.HourglassTop, contentDescription = null, tint = Color(0xFFB45309)) }
+            )
+        }
+        Spacer(Modifier.height(18.dp))
+        Text("الإعلانات التي تحتاج مراجعة", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
         if (pending.isEmpty()) {
             Text("لا توجد إعلانات معلقة حاليًا.", color = Color.Gray)
         } else {
@@ -93,6 +113,23 @@ fun AdminApp() {
             confirmButton = { TextButton(onClick = { repository.reject(id); rejectId = null }) { Text("تأكيد الرفض") } },
             dismissButton = { TextButton(onClick = { rejectId = null }) { Text("إلغاء") } }
         )
+    }
+}
+
+@Composable
+private fun StatCard(
+    modifier: Modifier,
+    title: String,
+    value: Int,
+    icon: @Composable () -> Unit
+) {
+    Card(modifier, colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))) {
+        Column(Modifier.padding(14.dp)) {
+            icon()
+            Spacer(Modifier.height(8.dp))
+            Text(value.toString(), fontSize = 26.sp, fontWeight = FontWeight.Black)
+            Text(title, fontSize = 12.sp, color = Color.Gray)
+        }
     }
 }
 
