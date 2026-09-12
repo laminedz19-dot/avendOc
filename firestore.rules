@@ -26,10 +26,15 @@ service cloud.firestore {
                     || (signedIn()
                         && resource.data.sellerId == request.auth.uid
                         && request.resource.data.sellerId == resource.data.sellerId
-                        && request.resource.data.status == resource.data.status
                         && request.resource.data.isSellerVerified == resource.data.isSellerVerified
-                        && request.resource.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['title', 'description', 'priceDzd', 'isNegotiable', 'category', 'wilayaCode', 'wilayaNameAr', 'wilayaNameFr', 'commune', 'condition', 'images', 'deliveryOption', 'paymentReference', 'paymentDate', 'paymentProofReceiptUrl', 'updatedAt']));
+                        && (
+                          (request.resource.data.status == resource.data.status
+                           && request.resource.data.diff(resource.data).affectedKeys()
+                              .hasOnly(['title', 'description', 'priceDzd', 'isNegotiable', 'category', 'wilayaCode', 'wilayaNameAr', 'wilayaNameFr', 'commune', 'condition', 'images', 'deliveryOption', 'paymentReference', 'paymentDate', 'paymentProofReceiptUrl', 'updatedAt']))
+                          || (resource.data.status == 'PUBLISHED'
+                              && request.resource.data.status == 'SOLD'
+                              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']))
+                        ));
 
       allow delete: if isAdmin() || (signedIn() && resource.data.sellerId == request.auth.uid);
     }

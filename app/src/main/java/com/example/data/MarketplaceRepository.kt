@@ -143,6 +143,11 @@ class MarketplaceRepository {
 
         val ad = _listings.value.find { it.id == listingId }
         if (ad != null) {
+            cloudService.syncListing(ad.copy(
+                status = AdStatus.PAYMENT_PENDING,
+                paymentReference = referenceNumber,
+                paymentDate = paymentDate
+            ))
             val verification = PaymentVerificationRecord(
                 listingId = ad.id,
                 listingTitle = ad.title,
@@ -259,10 +264,12 @@ class MarketplaceRepository {
 
     fun markAsSold(listingId: String) {
         if (auth.currentUser == null) return
+        val updatedListing = _listings.value.firstOrNull { it.id == listingId }?.copy(status = AdStatus.SOLD)
         _listings.update { list ->
             list.map {
                 if (it.id == listingId) it.copy(status = AdStatus.SOLD) else it
             }
         }
+        if (updatedListing != null) cloudService.syncListing(updatedListing)
     }
 }
