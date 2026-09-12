@@ -19,6 +19,7 @@ class AdminRepository {
     private val _connectionError = MutableStateFlow<String?>(null)
     val connectionError: StateFlow<String?> = _connectionError.asStateFlow()
     private var listener: ListenerRegistration? = null
+    private var usersListener: ListenerRegistration? = null
     private var db: FirebaseFirestore? = null
     private var isInitialSnapshot = true
 
@@ -59,7 +60,7 @@ class AdminRepository {
                         )
                     } ?: emptyList()
                 }
-                db!!.collection("users").addSnapshotListener { snapshot, error ->
+                usersListener = db!!.collection("users").addSnapshotListener { snapshot, error ->
                     if (error != null) {
                         reportFirestoreError("المستخدمين", error)
                         return@addSnapshotListener
@@ -109,16 +110,29 @@ class AdminRepository {
 
     private fun writeAudit(action: String, targetId: String, description: String) {
         val admin = FirebaseAuth.getInstance().currentUser
+        val adminUid = admin?.uid
+        if (adminUid.isNullOrBlank()) {
+            reportFirestoreError("سجل التدقيق", IllegalStateException("لا توجد جلسة أدمن صالحة"))
+            return
+        }
+        val adminEmail = admin?.email.orEmpty()
         db?.collection("auditLogs")?.add(
             mapOf(
                 "action" to action,
                 "targetId" to targetId,
                 "description" to description,
-                "adminUid" to (admin?.uid ?: "unknown"),
-                "adminEmail" to (admin?.email ?: "unknown"),
+                "adminUid" to adminUid,
+                "adminEmail" to adminEmail,
                 "createdAt" to FieldValue.serverTimestamp()
             )
         )?.addOnFailureListener { Log.e(TAG, "Could not write audit log", it) }
+    }
+
+    fun close() {
+        listener?.remove()
+        usersListener?.remove()
+        listener = null
+        usersListener = null
     }
 
     companion object { private const val TAG = "AdminRepository" }
