@@ -29,7 +29,9 @@ class AdminRepository {
                             wilaya = doc.getString("wilayaNameAr") ?: doc.getString("wilayaCode") ?: "",
                             commune = doc.getString("commune") ?: "",
                             priceDzd = doc.getLong("priceDzd") ?: 0L,
-                            status = doc.getString("status") ?: "PAYMENT_PENDING"
+                            status = doc.getString("status") ?: "PAYMENT_PENDING",
+                            category = doc.getString("category") ?: "OTHER",
+                            createdAt = doc.getString("createdAt") ?: "غير محدد"
                         )
                     } ?: emptyList()
                 }
@@ -53,5 +55,7 @@ data class AdminListing(
     val wilaya: String,
     val commune: String,
     val priceDzd: Long,
-    val status: String
+    val status: String,
+    val category: String,
+    val createdAt: String
 )
