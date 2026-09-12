@@ -48,6 +48,12 @@ jobs:
       - name: Validate Firebase configuration
         run: ./gradlew :app:validateGoogleServices --stacktrace --no-configuration-cache
 
+      - name: Run user unit tests
+        run: ./gradlew :app:testDebugUnitTest --stacktrace --no-configuration-cache
+
+      - name: Run user lint
+        run: ./gradlew :app:lintDebug --stacktrace --no-configuration-cache
+
       - name: Build User Debug APK
         run: ./gradlew assembleDebug -x validateSigningDebug --stacktrace --no-configuration-cache
 
