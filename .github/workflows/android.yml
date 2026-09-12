@@ -38,7 +38,7 @@ jobs:
       - name: Create dummy .env file if missing
         run: |
           if [ ! -f .env ]; then
-            printf '%s\n' 'GEMINI_API_KEY=""' > .env
+            echo 'GEMINI_API_KEY="placeholder_api_key"' > .env
           fi
 
       - name: Create debug keystore
