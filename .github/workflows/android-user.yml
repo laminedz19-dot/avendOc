@@ -41,8 +41,12 @@ jobs:
           elif [ -f "app/google-services.json" ]; then
             echo "Using committed user app google-services.json."
           else
-            echo "No google-services.json provided; continuing in fallback mode."
+            echo "No google-services.json provided."
+            exit 1
           fi
+
+      - name: Validate Firebase configuration
+        run: ./gradlew :app:validateGoogleServices --stacktrace
 
       - name: Build User Debug APK
         run: ./gradlew assembleDebug -x validateSigningDebug --stacktrace
@@ -77,8 +81,13 @@ jobs:
           elif [ -f "admin-app/app/google-services.json" ]; then
             echo "google-services.json is already committed in admin-app/app/."
           else
-            echo "No google-services.json provided for admin app; continuing with fallback mode."
+            echo "No google-services.json provided for admin app."
+            exit 1
           fi
+
+      - name: Validate admin Firebase configuration
+        working-directory: admin-app
+        run: ./gradlew :app:validateGoogleServices --stacktrace
 
       - name: Build Admin Debug APK
         working-directory: admin-app

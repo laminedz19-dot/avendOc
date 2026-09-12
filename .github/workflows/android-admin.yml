@@ -45,8 +45,13 @@ jobs:
           elif [ -f "admin-app/app/google-services.json" ]; then
             echo "Using committed admin app google-services.json."
           else
-            echo "No google-services.json provided for admin app; continuing in fallback mode."
+            echo "No google-services.json provided for admin app."
+            exit 1
           fi
+
+      - name: Validate Firebase configuration
+        working-directory: admin-app
+        run: ./gradlew :app:validateGoogleServices --stacktrace
 
       - name: Build Admin Debug APK
         working-directory: admin-app

@@ -1,4 +1,5 @@
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
+import groovy.json.JsonSlurper
 
 plugins {
   alias(libs.plugins.android.application)
@@ -72,6 +73,47 @@ secrets {
 }
 
 googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
+
+val expectedFirebasePackage = android.defaultConfig.applicationId
+val firebaseConfigFile = file("google-services.json")
+val validateGoogleServices by tasks.registering {
+  group = "verification"
+  description = "Validates google-services.json against the Android application configuration."
+  notCompatibleWithConfigurationCache("Reads the Firebase JSON during task execution.")
+
+  doLast {
+    val configFile = firebaseConfigFile
+    check(configFile.isFile) {
+      "Firebase configuration missing: ${configFile.path}. Add the file for this app before building."
+    }
+    val root = JsonSlurper().parseText(configFile.readText()) as? Map<*, *>
+      ?: error("Firebase configuration is not a JSON object: ${configFile.path}")
+    val projectInfo = root["project_info"] as? Map<*, *>
+      ?: error("Firebase configuration is missing project_info.")
+    val projectId = projectInfo["project_id"] as? String
+    check(!projectId.isNullOrBlank()) { "Firebase configuration is missing project_info.project_id." }
+    val clients = root["client"] as? List<*>
+      ?: error("Firebase configuration is missing client[].")
+    val matchingClient = clients.asSequence()
+      .mapNotNull { it as? Map<*, *> }
+      .firstOrNull { client ->
+        val info = client["client_info"] as? Map<*, *>
+        val androidInfo = info?.get("android_client_info") as? Map<*, *>
+        androidInfo?.get("package_name") == expectedFirebasePackage
+      }
+    check(matchingClient != null) {
+      "Firebase config package mismatch. Expected: $expectedFirebasePackage. " +
+        "No matching client[].client_info.android_client_info.package_name found."
+    }
+    val mobileSdkAppId = matchingClient["mobilesdk_app_id"] as? String
+    check(!mobileSdkAppId.isNullOrBlank()) {
+      "Firebase configuration is missing client[].mobilesdk_app_id."
+    }
+    println("Firebase configuration validated for $expectedFirebasePackage (project: $projectId).")
+  }
+}
+
+tasks.named("preBuild") { dependsOn(validateGoogleServices) }
 
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
