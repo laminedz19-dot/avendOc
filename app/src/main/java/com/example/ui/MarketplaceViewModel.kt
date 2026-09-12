@@ -135,27 +135,36 @@ class MarketplaceViewModel(
 
     fun login(phoneOrEmail: String, password: String, role: UserRole = UserRole.SELLER) {
         val name = if (role == UserRole.SELLER) "أمين قاسي" else "كريم منصوري"
-        _userAccount.value = UserAccount(
+        val account = UserAccount(
             id = if (role == UserRole.SELLER) "seller-amine" else "buyer-karim",
             name = name,
             phone = phoneOrEmail.ifBlank { "0661234567" },
             wilayaCode = "16",
             isLoggedIn = true
         )
+        activateAccount(account, role)
+    }
+
+    private fun activateAccount(account: UserAccount, role: UserRole) {
+        _userAccount.value = account
+        repository.syncUser(account)
+        repository.observeUserBlock(account.id) { blocked ->
+            _userAccount.update { it.copy(isBlocked = blocked, isLoggedIn = !blocked) }
+            if (blocked) _showAuthDialog.value = true
+        }
         repository.switchRole(role)
-        _showAuthDialog.value = false
+        _showAuthDialog.value = account.isBlocked
     }
 
     fun register(name: String, phone: String, wilayaCode: String, role: UserRole = UserRole.SELLER) {
-        _userAccount.value = UserAccount(
+        val account = UserAccount(
             id = "user-${System.currentTimeMillis() % 10000}",
             name = name.ifBlank { "مستخدم جديد" },
             phone = phone.ifBlank { "0661234567" },
             wilayaCode = wilayaCode,
             isLoggedIn = true
         )
-        repository.switchRole(role)
-        _showAuthDialog.value = false
+        activateAccount(account, role)
     }
 
     fun logout() {

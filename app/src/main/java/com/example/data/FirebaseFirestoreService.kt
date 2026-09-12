@@ -139,6 +139,34 @@ class FirebaseFirestoreService {
         }
     }
 
+    fun syncUser(account: UserAccount) {
+        val db = firestore ?: return
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                db.collection("users").document(account.id).set(
+                    mapOf(
+                        "name" to account.name,
+                        "phone" to account.phone,
+                        "wilayaCode" to account.wilayaCode,
+                        "isBlocked" to account.isBlocked,
+                        "updatedAt" to System.currentTimeMillis()
+                    )
+                )
+            } catch (e: Exception) {
+                Log.w("FirebaseFirestoreService", "Failed to sync user: ${e.message}")
+            }
+        }
+    }
+
+    fun listenToUserBlock(userId: String, onBlockedChanged: (Boolean) -> Unit): ListenerRegistration? {
+        val db = firestore ?: return null
+        return db.collection("users").document(userId).addSnapshotListener { snapshot, error ->
+            if (error == null && snapshot != null) {
+                onBlockedChanged(snapshot.getBoolean("isBlocked") ?: false)
+            }
+        }
+    }
+
     fun syncOffer(offer: NegotiationOffer) {
         val db = firestore ?: return
         CoroutineScope(Dispatchers.IO).launch {

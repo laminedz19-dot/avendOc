@@ -159,7 +159,8 @@ data class UserAccount(
     val name: String = "زائر",
     val phone: String = "",
     val wilayaCode: String = "16",
-    val isLoggedIn: Boolean = false
+    val isLoggedIn: Boolean = false,
+    val isBlocked: Boolean = false
 )
 
 enum class UserRole(val displayNameAr: String, val displayNameFr: String) {

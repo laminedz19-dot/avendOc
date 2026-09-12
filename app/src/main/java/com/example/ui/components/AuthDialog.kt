@@ -181,6 +181,24 @@ fun AuthDialog(
                     )
                 }
 
+                if (userAccount.isBlocked) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        color = Color(0xFFFEE2E2),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = if (isArabic) "هذا الحساب محظور من طرف الإدارة. تواصل مع الدعم للمراجعة."
+                            else "Ce compte est bloqué par l'administration. Contactez le support.",
+                            color = Color(0xFF991B1B),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // -------------------------------------------------------------

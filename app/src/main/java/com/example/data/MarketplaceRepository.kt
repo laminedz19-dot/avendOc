@@ -46,6 +46,14 @@ class MarketplaceRepository {
         }
     }
 
+    fun syncUser(account: UserAccount) {
+        cloudService.syncUser(account)
+    }
+
+    fun observeUserBlock(userId: String, onBlockedChanged: (Boolean) -> Unit) {
+        cloudService.listenToUserBlock(userId, onBlockedChanged)
+    }
+
     fun switchRole(role: UserRole) {
         _currentUserRole.value = role
     }
