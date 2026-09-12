@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -36,10 +37,14 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -82,6 +87,7 @@ fun MainAppContainer(
     val userAccount by viewModel.userAccount.collectAsState()
     val showAuthDialog by viewModel.showAuthDialog.collectAsState()
     val visitorCount by viewModel.visitorCount.collectAsState()
+    var showAccountDialog by remember { mutableStateOf(false) }
 
     // Fluctuates visitor count every 5 seconds ("والعدد يتغير كل 5ثواني")
     LaunchedEffect(Unit) {
@@ -101,6 +107,35 @@ fun MainAppContainer(
             onDismiss = { viewModel.closeAuthDialog() },
             onLogin = { phone, pass, role -> viewModel.login(phone, pass, role) },
             onRegister = { name, phone, wilaya, role -> viewModel.register(name, phone, wilaya, role) }
+        )
+    }
+
+    if (showAccountDialog && userAccount.isLoggedIn) {
+        AlertDialog(
+            onDismissRequest = { showAccountDialog = false },
+            title = { Text(if (isArabic) "بياناتي" else "Mes données") },
+            text = {
+                Text(
+                    if (isArabic) {
+                        "الاسم: ${userAccount.name}\nالهاتف: ${userAccount.phone}\nالولاية: ${userAccount.wilayaCode}"
+                    } else {
+                        "Nom: ${userAccount.name}\nTéléphone: ${userAccount.phone}\nWilaya: ${userAccount.wilayaCode}"
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showAccountDialog = false
+                    viewModel.logout()
+                }) {
+                    Text(if (isArabic) "تسجيل الخروج" else "Se déconnecter")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAccountDialog = false }) {
+                    Text(if (isArabic) "إغلاق" else "Fermer")
+                }
+            }
         )
     }
 
@@ -147,8 +182,10 @@ fun MainAppContainer(
                     AchriDZTopBar(
                         currentLanguage = currentLanguage,
                         visitorCount = visitorCount,
+                        isLoggedIn = userAccount.isLoggedIn,
                         onToggleLanguage = { viewModel.toggleLanguage() },
-                        onOpenAuth = { viewModel.openAuthDialog() }
+                        onOpenAuth = { viewModel.openAuthDialog() },
+                        onOpenAccount = { showAccountDialog = true }
                     )
                 },
                 bottomBar = {

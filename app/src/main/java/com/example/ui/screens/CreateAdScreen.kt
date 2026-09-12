@@ -1324,15 +1324,15 @@ fun Step10PaymentAndVerification(
                 }
                 Spacer(modifier = Modifier.height(14.dp))
                 Text(
-                    text = if (isArabic) "🎉 تم نشر إعلانك بنجاح في السوق!" else "🎉 Annonce publiée avec succès !",
+                    text = if (isArabic) "✅ تم إرسال إعلانك للمراقبة" else "✅ Votre annonce a été envoyée pour modération",
                     fontWeight = FontWeight.Black,
                     fontSize = 17.sp,
                     color = StatusGreen
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = if (isArabic) "تم حفظ جميع بيانات الإعلان وخيار التوصيل والصور المرفقة. إعلانك الآن معروض مباشرة لجميع المشترين في 69 ولاية!"
-                    else "Toutes les informations, photos et mode de livraison sont enregistrés. L'annonce est active sur les 69 wilayas.",
+                    text = if (isArabic) "إعلانك في انتظار مصادقة الإدارة ولن ينشر في السوق حتى تتم الموافقة عليه."
+                    else "Votre annonce est en attente de validation par l'administration et ne sera publiée qu'après approbation.",
                     fontSize = 12.sp,
                     color = SlateMuted
                 )

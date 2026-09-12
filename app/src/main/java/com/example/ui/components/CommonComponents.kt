@@ -92,7 +92,7 @@ fun AdStatusBadge(status: AdStatus, isArabic: Boolean = true) {
         AdStatus.PAYMENT_PENDING -> Triple(
             StatusAmberContainer,
             StatusAmber,
-            if (isArabic) "قيد مراجعة 300 دج" else "Vérif CCP 300 DZD"
+            if (isArabic) "في انتظار مصادقة الإدارة" else "En attente de validation"
         )
         AdStatus.PAYMENT_REQUIRED -> Triple(
             AmberContainer,
@@ -225,9 +225,11 @@ fun AchriDZTopBar(
     currentLanguage: AppLanguage,
     visitorCount: Int = 18450,
     currentRole: UserRole = UserRole.SELLER,
+    isLoggedIn: Boolean = false,
     onRoleSelected: (UserRole) -> Unit = {},
     onToggleLanguage: () -> Unit,
-    onOpenAuth: () -> Unit = {}
+    onOpenAuth: () -> Unit = {},
+    onOpenAccount: () -> Unit = {}
 ) {
     val isArabic = currentLanguage == AppLanguage.ARABIC
 
@@ -355,12 +357,12 @@ fun AchriDZTopBar(
 
             Spacer(modifier = Modifier.width(4.dp))
 
-            // Auth / Account button
+            // Auth / Account button: login for guests, account data for logged-in users.
             IconButton(
-                onClick = onOpenAuth,
+                onClick = if (isLoggedIn) onOpenAccount else onOpenAuth,
                 modifier = Modifier
                     .size(36.dp)
-                    .testTag("open_auth_button")
+                    .testTag(if (isLoggedIn) "open_account_button" else "open_auth_button")
             ) {
                 Surface(
                     shape = CircleShape,
@@ -370,7 +372,7 @@ fun AchriDZTopBar(
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Person,
-                            contentDescription = "Account",
+                            contentDescription = if (isLoggedIn) "بياناتي" else "تسجيل الدخول",
                             tint = OnEmeraldContainer,
                             modifier = Modifier.size(16.dp)
                         )

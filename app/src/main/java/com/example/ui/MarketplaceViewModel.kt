@@ -113,11 +113,11 @@ class MarketplaceViewModel(
     // User Account & Authentication ("عند فتح التطبيق تظهر لائحة بها التسجيل وتحتها الدخول")
     private val _userAccount = MutableStateFlow(
         UserAccount(
-            id = "seller-amine",
-            name = "أمين قاسي",
-            phone = "0661234567",
+            id = "user-guest",
+            name = "زائر",
+            phone = "",
             wilayaCode = "16",
-            isLoggedIn = true
+            isLoggedIn = false
         )
     )
     val userAccount: StateFlow<UserAccount> = _userAccount.asStateFlow()
@@ -197,10 +197,9 @@ class MarketplaceViewModel(
 
     val myAds: StateFlow<List<ListingItem>> = combine(
         repository.listings,
-        currentUserRole
-    ) { listings, role ->
-        val currentSellerId = if (role == UserRole.SELLER) "seller-amine" else "buyer-karim"
-        listings.filter { it.sellerId == currentSellerId }
+        _userAccount
+    ) { listings, account ->
+        if (!account.isLoggedIn) emptyList() else listings.filter { it.sellerId == account.id }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun selectTab(tab: NavigationTab) {
@@ -285,6 +284,8 @@ class MarketplaceViewModel(
             wilayaCode = form.wilayaCode,
             commune = form.commune,
             condition = form.condition,
+            sellerId = _userAccount.value.id,
+            sellerName = _userAccount.value.name,
             sellerPhone = form.sellerPhone,
             images = form.selectedImages,
             deliveryOption = form.deliveryOption,

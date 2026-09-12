@@ -23,7 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
@@ -450,35 +449,6 @@ fun AuthDialog(
                 Spacer(modifier = Modifier.height(16.dp))
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(12.dp))
-
-                // Fast One-Tap Demo Login
-                Text(
-                    text = if (isArabic) "⚡ الدخول السريع بنقرة واحدة (للاختبار الفوري):" else "⚡ Connexion rapide démo :",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = SlateMuted
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedButton(
-                    onClick = { onLogin("0661234567", "demo", UserRole.SELLER) },
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FlashOn,
-                        contentDescription = null,
-                        tint = AmberAccent,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (isArabic) "دخول سريع بنقرة واحدة (حساب تجريبي)" else "Connexion rapide démo",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
 
                 Spacer(modifier = Modifier.height(12.dp))
 

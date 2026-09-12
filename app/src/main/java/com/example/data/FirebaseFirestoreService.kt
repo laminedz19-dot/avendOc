@@ -57,7 +57,7 @@ class FirebaseFirestoreService {
                                     ItemCondition.GOOD
                                 }
 
-                                val statusStr = doc.getString("status") ?: "PUBLISHED"
+                                val statusStr = doc.getString("status") ?: "PAYMENT_PENDING"
                                 val status = try {
                                     AdStatus.valueOf(statusStr)
                                 } catch (_: Exception) {

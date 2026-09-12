@@ -282,7 +282,7 @@ fun MyAdsScreen(
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Text(
-                                            text = if (isArabic) "⏳ الإعلان قيد مراجعة الإدارة ولن يظهر في السوق حتى الموافقة" else "⏳ Validation administrative en cours",
+                                            text = if (isArabic) "⏳ في انتظار مصادقة الإدارة ولن يظهر الإعلان في السوق حتى الموافقة" else "⏳ En attente de validation par l'administration",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = SlateMuted,
