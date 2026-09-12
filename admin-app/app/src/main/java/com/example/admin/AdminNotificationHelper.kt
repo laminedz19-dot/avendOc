@@ -3,6 +3,7 @@ package com.example.admin
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
@@ -10,7 +11,8 @@ object AdminNotificationHelper {
     private const val CHANNEL_ID = "pending_listings"
 
     fun createChannel(context: Context) {
-        val manager = context.getSystemService(NotificationManager::class.java)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "مراجعة الإعلانات", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "إشعارات الإعلانات الجديدة التي تحتاج موافقة الأدمين"
