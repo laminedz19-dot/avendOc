@@ -2,56 +2,88 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function isAdmin() {
-      return signedIn() && request.auth.token.admin == true;
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function listing(listingId) { return get(/databases/$(database)/documents/listings/$(listingId)); }
+    function listingSeller(listingId) { return listing(listingId).data.sellerId; }
+    function isListingParticipant(listingId) {
+      return signedIn() && (request.auth.uid == listingSeller(listingId) || request.auth.uid == request.resource.data.buyerId);
     }
 
     match /listings/{listingId} {
-      // Published listings are public. Owners may read their own listings.
-      allow read: if resource.data.status == 'PUBLISHED'
-                  || (signedIn() && resource.data.sellerId == request.auth.uid)
-                  || isAdmin();
+      allow read: if isAdmin()
+                  || resource.data.status == 'PUBLISHED'
+                  || (signedIn() && resource.data.sellerId == request.auth.uid);
 
-      // User-created listings may start only in the pending state.
       allow create: if signedIn()
                     && request.resource.data.sellerId == request.auth.uid
                     && request.resource.data.status == 'PAYMENT_PENDING'
+                    && request.resource.data.isSellerVerified == false
                     && request.resource.data.keys().hasAll(['sellerId', 'status', 'title', 'createdAt']);
 
-      // Admins may moderate status and rejection metadata; owners cannot change moderation fields.
       allow update: if isAdmin()
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['status', 'rejectionReason'])
-                    && request.resource.data.status in ['PAYMENT_PENDING', 'PUBLISHED', 'REJECTED']
-                    && (request.resource.data.status != 'REJECTED'
-                        || (request.resource.data.rejectionReason is string
-                            && request.resource.data.rejectionReason.size() > 0))
                     || (signedIn()
                         && resource.data.sellerId == request.auth.uid
+                        && request.resource.data.sellerId == resource.data.sellerId
+                        && request.resource.data.status == resource.data.status
+                        && request.resource.data.isSellerVerified == resource.data.isSellerVerified
                         && request.resource.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['title', 'description', 'priceDzd', 'category', 'updatedAt']));
+                           .hasOnly(['title', 'description', 'priceDzd', 'isNegotiable', 'category', 'wilayaCode', 'wilayaNameAr', 'wilayaNameFr', 'commune', 'condition', 'images', 'deliveryOption', 'paymentReference', 'paymentDate', 'paymentProofReceiptUrl', 'updatedAt']));
 
       allow delete: if isAdmin() || (signedIn() && resource.data.sellerId == request.auth.uid);
     }
 
     match /users/{userId} {
-      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
-      allow create: if signedIn()
-                    && request.auth.uid == userId
+      allow read: if isAdmin() || isOwner(userId);
+      allow create: if isOwner(userId)
                     && request.resource.data.isBlocked == false
                     && request.resource.data.keys().hasOnly(['name', 'phone', 'wilayaCode', 'isBlocked', 'updatedAt']);
       allow update: if isAdmin()
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['isBlocked', 'updatedAt'])
-                    && request.resource.data.isBlocked is bool
-                    || (signedIn() && request.auth.uid == userId
+                    || (isOwner(userId)
+                        && request.resource.data.isBlocked == resource.data.isBlocked
                         && request.resource.data.diff(resource.data).affectedKeys()
                            .hasOnly(['name', 'phone', 'wilayaCode', 'updatedAt']));
-      allow delete: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow delete: if isAdmin() || isOwner(userId);
+    }
+
+    match /offers/{offerId} {
+      allow read: if isAdmin()
+                  || (signedIn() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid));
+      allow create: if signedIn()
+                    && request.resource.data.buyerId == request.auth.uid
+                    && request.resource.data.sellerId == listingSeller(request.resource.data.listingId)
+                    && request.resource.data.status == 'PENDING'
+                    && request.resource.data.keys().hasAll(['listingId', 'sellerId', 'buyerId', 'proposedPriceDzd', 'status']);
+      allow update: if isAdmin()
+                    || (signedIn()
+                        && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid)
+                        && request.resource.data.listingId == resource.data.listingId
+                        && request.resource.data.sellerId == resource.data.sellerId
+                        && request.resource.data.buyerId == resource.data.buyerId
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['status', 'counterPriceDzd', 'message', 'updatedAt']));
+      allow delete: if isAdmin() || (signedIn() && resource.data.buyerId == request.auth.uid);
+    }
+
+    match /chats/{messageId} {
+      allow read: if isAdmin()
+                  || (signedIn() && (resource.data.senderId == request.auth.uid || request.auth.uid == listingSeller(resource.data.listingId)));
+      allow create: if signedIn()
+                    && request.resource.data.senderId == request.auth.uid
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() > 0
+                    && request.resource.data.listingId is string;
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.senderId == request.auth.uid);
+    }
+
+    match /adminTokens/{tokenId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin()
+                           && request.resource.data.adminUid == request.auth.uid
+                           && request.resource.data.token is string
+                           && request.resource.data.token.size() > 20;
+      allow delete: if isAdmin() && resource.data.adminUid == request.auth.uid;
     }
 
     match /auditLogs/{logId} {
@@ -62,18 +94,6 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    match /adminTokens/{tokenId} {
-      allow read: if isAdmin();
-      allow create, update: if isAdmin()
-                            && request.resource.data.adminUid == request.auth.uid
-                            && request.resource.data.token is string
-                            && request.resource.data.token.size() > 20;
-      allow delete: if isAdmin() && resource.data.adminUid == request.auth.uid;
-    }
-
-    // Keep other application collections inaccessible to the admin client unless explicit rules are added.
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    match /{document=**} { allow read, write: if false; }
   }
 }

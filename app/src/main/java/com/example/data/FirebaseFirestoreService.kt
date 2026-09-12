@@ -2,15 +2,18 @@ package com.example.data
 
 import android.util.Log
 import com.google.firebase.FirebaseApp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 class FirebaseFirestoreService {
-
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var firestore: FirebaseFirestore? = null
     private var listingsListener: ListenerRegistration? = null
     private var isInitialized = false
@@ -21,95 +24,78 @@ class FirebaseFirestoreService {
                 firestore = FirebaseFirestore.getInstance()
                 isInitialized = true
                 listenToListings(onListingsUpdated)
-                Log.d("FirebaseFirestoreService", "Firebase Firestore initialized successfully")
             }
         } catch (e: Exception) {
-            Log.w("FirebaseFirestoreService", "Firestore not available or not configured yet: ${e.message}")
+            Log.w(TAG, "Firestore initialization failed: ${e.message}")
         }
     }
 
     private fun listenToListings(onListingsUpdated: (List<ListingItem>) -> Unit) {
         val db = firestore ?: return
-        try {
-            listingsListener = db.collection("listings")
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .limit(100)
-                .addSnapshotListener { snapshot, error ->
-                    if (error != null) {
-                        Log.w("FirebaseFirestoreService", "Listen failed.", error)
-                        return@addSnapshotListener
-                    }
-
-                    if (snapshot != null && !snapshot.isEmpty) {
-                        val remoteListings = snapshot.documents.mapNotNull { doc ->
-                            try {
-                                val categoryStr = doc.getString("category") ?: "OTHER"
-                                val category = try {
-                                    CategoryType.valueOf(categoryStr)
-                                } catch (_: Exception) {
-                                    CategoryType.OTHER
-                                }
-
-                                val conditionStr = doc.getString("condition") ?: "GOOD"
-                                val condition = try {
-                                    ItemCondition.valueOf(conditionStr)
-                                } catch (_: Exception) {
-                                    ItemCondition.GOOD
-                                }
-
-                                val statusStr = doc.getString("status") ?: "PAYMENT_PENDING"
-                                val status = try {
-                                    AdStatus.valueOf(statusStr)
-                                } catch (_: Exception) {
-                                    AdStatus.PUBLISHED
-                                }
-
-                                ListingItem(
-                                    id = doc.id,
-                                    title = doc.getString("title") ?: "",
-                                    description = doc.getString("description") ?: "",
-                                    priceDzd = doc.getLong("priceDzd") ?: 0L,
-                                    isNegotiable = doc.getBoolean("isNegotiable") ?: true,
-                                    category = category,
-                                    wilayaCode = doc.getString("wilayaCode") ?: "16",
-                                    wilayaNameAr = doc.getString("wilayaNameAr") ?: "الجزائر",
-                                    wilayaNameFr = doc.getString("wilayaNameFr") ?: "Alger",
-                                    commune = doc.getString("commune") ?: "",
-                                    condition = condition,
-                                    sellerId = doc.getString("sellerId") ?: "seller-amine",
-                                    sellerName = doc.getString("sellerName") ?: "بائع جزائري",
-                                    sellerPhone = doc.getString("sellerPhone") ?: "0661234567",
-                                    isSellerVerified = doc.getBoolean("isSellerVerified") ?: true,
-                                    status = status,
-                                    paymentReference = doc.getString("paymentReference") ?: "",
-                                    paymentDate = doc.getString("paymentDate") ?: "",
-                                    paymentProofReceiptUrl = doc.getString("paymentProofReceiptUrl") ?: "",
-                                    createdAt = doc.getString("createdAt") ?: "الآن",
-                                    viewsCount = (doc.getLong("viewsCount") ?: 0L).toInt(),
-                                    offersCount = (doc.getLong("offersCount") ?: 0L).toInt(),
-                                    featuredTag = doc.getString("featuredTag")
-                                )
-                            } catch (e: Exception) {
-                                Log.e("FirebaseFirestoreService", "Error parsing listing document", e)
-                                null
-                            }
-                        }
-
-                        if (remoteListings.isNotEmpty()) {
-                            onListingsUpdated(remoteListings)
-                        }
-                    }
+        listingsListener = db.collection("listings")
+            .whereEqualTo("status", AdStatus.PUBLISHED.name)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(100)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.w(TAG, "Listings listener failed", error)
+                    return@addSnapshotListener
                 }
+                val listings = snapshot?.documents?.mapNotNull(::parseListing).orEmpty()
+                onListingsUpdated(listings)
+            }
+    }
+
+    private fun parseListing(doc: com.google.firebase.firestore.DocumentSnapshot): ListingItem? {
+        return try {
+            val category = doc.getString("category")?.let { value ->
+                runCatching { CategoryType.valueOf(value) }.getOrDefault(CategoryType.OTHER)
+            } ?: CategoryType.OTHER
+            val condition = doc.getString("condition")?.let { value ->
+                runCatching { ItemCondition.valueOf(value) }.getOrDefault(ItemCondition.GOOD)
+            } ?: ItemCondition.GOOD
+            val status = doc.getString("status")?.let { value ->
+                runCatching { AdStatus.valueOf(value) }.getOrDefault(AdStatus.PUBLISHED)
+            } ?: return null
+            val sellerId = doc.getString("sellerId") ?: return null
+            ListingItem(
+                id = doc.id,
+                title = doc.getString("title") ?: return null,
+                description = doc.getString("description") ?: "",
+                priceDzd = doc.getLong("priceDzd") ?: return null,
+                isNegotiable = doc.getBoolean("isNegotiable") ?: true,
+                category = category,
+                wilayaCode = doc.getString("wilayaCode") ?: "",
+                wilayaNameAr = doc.getString("wilayaNameAr") ?: "",
+                wilayaNameFr = doc.getString("wilayaNameFr") ?: "",
+                commune = doc.getString("commune") ?: "",
+                condition = condition,
+                sellerId = sellerId,
+                sellerName = doc.getString("sellerName") ?: "",
+                sellerPhone = doc.getString("sellerPhone") ?: "",
+                isSellerVerified = doc.getBoolean("isSellerVerified") ?: false,
+                status = status,
+                paymentReference = doc.getString("paymentReference") ?: "",
+                paymentDate = doc.getString("paymentDate") ?: "",
+                paymentProofReceiptUrl = doc.getString("paymentProofReceiptUrl") ?: "",
+                createdAt = doc.getTimestamp("createdAt")?.toDate()?.time?.toString()
+                    ?: doc.getString("createdAt") ?: "",
+                viewsCount = (doc.getLong("viewsCount") ?: 0L).toInt(),
+                offersCount = (doc.getLong("offersCount") ?: 0L).toInt(),
+                images = (doc.get("images") as? List<*>)?.filterIsInstance<String>().orEmpty(),
+                featuredTag = doc.getString("featuredTag")
+            )
         } catch (e: Exception) {
-            Log.w("FirebaseFirestoreService", "Error setting up listener: ${e.message}")
+            Log.e(TAG, "Error parsing listing ${doc.id}", e)
+            null
         }
     }
 
     fun syncListing(item: ListingItem) {
         val db = firestore ?: return
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             try {
-                val data = hashMapOf(
+                val data = hashMapOf<String, Any?>(
                     "title" to item.title,
                     "description" to item.description,
                     "priceDzd" to item.priceDzd,
@@ -127,88 +113,94 @@ class FirebaseFirestoreService {
                     "status" to item.status.name,
                     "paymentReference" to item.paymentReference,
                     "paymentDate" to item.paymentDate,
-                    "createdAt" to item.createdAt,
+                    "paymentProofReceiptUrl" to item.paymentProofReceiptUrl,
+                    "images" to item.images,
                     "viewsCount" to item.viewsCount,
-                    "offersCount" to item.offersCount
+                    "offersCount" to item.offersCount,
+                    "createdAt" to if (item.createdAt.isBlank()) FieldValue.serverTimestamp() else item.createdAt
                 )
                 db.collection("listings").document(item.id).set(data)
-                Log.d("FirebaseFirestoreService", "Synced listing ${item.id} to Firestore")
             } catch (e: Exception) {
-                Log.w("FirebaseFirestoreService", "Failed to sync listing to Firestore: ${e.message}")
+                Log.w(TAG, "Failed to sync listing", e)
             }
         }
     }
 
     fun syncUser(account: UserAccount) {
         val db = firestore ?: return
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
+        if (account.id.isBlank()) return
+        scope.launch {
+            runCatching {
                 db.collection("users").document(account.id).set(
                     mapOf(
                         "name" to account.name,
                         "phone" to account.phone,
                         "wilayaCode" to account.wilayaCode,
                         "isBlocked" to account.isBlocked,
-                        "updatedAt" to System.currentTimeMillis()
+                        "updatedAt" to FieldValue.serverTimestamp()
                     )
                 )
-            } catch (e: Exception) {
-                Log.w("FirebaseFirestoreService", "Failed to sync user: ${e.message}")
-            }
+            }.onFailure { Log.w(TAG, "Failed to sync user", it) }
         }
     }
 
     fun listenToUserBlock(userId: String, onBlockedChanged: (Boolean) -> Unit): ListenerRegistration? {
-        val db = firestore ?: return null
-        return db.collection("users").document(userId).addSnapshotListener { snapshot, error ->
-            if (error == null && snapshot != null) {
-                onBlockedChanged(snapshot.getBoolean("isBlocked") ?: false)
-            }
+        if (userId.isBlank()) return null
+        return firestore?.collection("users")?.document(userId)?.addSnapshotListener { snapshot, error ->
+            if (error == null && snapshot != null) onBlockedChanged(snapshot.getBoolean("isBlocked") ?: false)
         }
     }
 
     fun syncOffer(offer: NegotiationOffer) {
         val db = firestore ?: return
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val data = hashMapOf(
-                    "listingId" to offer.listingId,
-                    "listingTitle" to offer.listingTitle,
-                    "buyerId" to offer.buyerId,
-                    "buyerName" to offer.buyerName,
-                    "buyerPhone" to offer.buyerPhone,
-                    "originalPriceDzd" to offer.originalPriceDzd,
-                    "proposedPriceDzd" to offer.proposedPriceDzd,
-                    "counterPriceDzd" to (offer.counterPriceDzd ?: 0L),
-                    "status" to offer.status.name,
-                    "message" to offer.message,
-                    "timestamp" to offer.timestamp
+        if (offer.buyerId.isBlank()) return
+        scope.launch {
+            runCatching {
+                db.collection("offers").document(offer.id).set(
+                    mapOf(
+                        "listingId" to offer.listingId,
+                        "listingTitle" to offer.listingTitle,
+                        "sellerId" to offer.sellerId,
+                        "buyerId" to offer.buyerId,
+                        "buyerName" to offer.buyerName,
+                        "buyerPhone" to offer.buyerPhone,
+                        "originalPriceDzd" to offer.originalPriceDzd,
+                        "proposedPriceDzd" to offer.proposedPriceDzd,
+                        "counterPriceDzd" to offer.counterPriceDzd,
+                        "status" to offer.status.name,
+                        "message" to offer.message,
+                        "timestamp" to if (offer.timestamp.isBlank()) FieldValue.serverTimestamp() else offer.timestamp
+                    )
                 )
-                db.collection("offers").document(offer.id).set(data)
-            } catch (e: Exception) {
-                Log.w("FirebaseFirestoreService", "Failed to sync offer: ${e.message}")
-            }
+            }.onFailure { Log.w(TAG, "Failed to sync offer", it) }
         }
     }
 
     fun syncChatMessage(message: ChatMessage) {
         val db = firestore ?: return
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val data = hashMapOf(
-                    "listingId" to message.listingId,
-                    "senderId" to message.senderId,
-                    "senderName" to message.senderName,
-                    "text" to message.text,
-                    "timestamp" to message.timestamp,
-                    "isFromMe" to message.isFromMe
+        if (message.senderId.isBlank()) return
+        scope.launch {
+            runCatching {
+                db.collection("chats").document(message.id).set(
+                    mapOf(
+                        "listingId" to message.listingId,
+                        "senderId" to message.senderId,
+                        "senderName" to message.senderName,
+                        "text" to message.text,
+                        "timestamp" to if (message.timestamp.isBlank()) FieldValue.serverTimestamp() else message.timestamp
+                    )
                 )
-                db.collection("chats").document(message.id).set(data)
-            } catch (e: Exception) {
-                Log.w("FirebaseFirestoreService", "Failed to sync chat message: ${e.message}")
-            }
+            }.onFailure { Log.w(TAG, "Failed to sync chat message", it) }
         }
     }
 
     fun isCloudConnected(): Boolean = isInitialized && firestore != null
+
+    fun close() {
+        listingsListener?.remove()
+        listingsListener = null
+        scope.cancel()
+    }
+
+    private companion object { const val TAG = "FirebaseFirestoreService" }
 }

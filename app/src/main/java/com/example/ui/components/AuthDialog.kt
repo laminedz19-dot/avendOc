@@ -75,7 +75,7 @@ fun AuthDialog(
     currentLanguage: AppLanguage,
     onDismiss: () -> Unit,
     onLogin: (phone: String, pass: String, role: UserRole) -> Unit,
-    onRegister: (name: String, phone: String, wilayaCode: String, role: UserRole) -> Unit
+    onRegister: (name: String, email: String, password: String, wilayaCode: String, role: UserRole) -> Unit
 ) {
     val isArabic = currentLanguage == AppLanguage.ARABIC
 
@@ -276,9 +276,9 @@ fun AuthDialog(
                                 OutlinedTextField(
                                     value = regPhone,
                                     onValueChange = { regPhone = it },
-                                    label = { Text(if (isArabic) "رقم الهاتف (05/06/07)" else "Numéro de téléphone") },
-                                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = EmeraldPrimary) },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                    label = { Text(if (isArabic) "البريد الإلكتروني" else "Adresse e-mail") },
+                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = EmeraldPrimary) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .testTag("reg_phone_input"),
@@ -306,8 +306,9 @@ fun AuthDialog(
                                 Button(
                                     onClick = {
                                         onRegister(
-                                            regName.ifBlank { "مستخدم جديد" },
-                                            regPhone.ifBlank { "0661234567" },
+                                            regName,
+                                            regPhone,
+                                            regPassword,
                                             regWilayaCode,
                                             regRole
                                         )
@@ -394,8 +395,9 @@ fun AuthDialog(
                                 OutlinedTextField(
                                     value = loginPhone,
                                     onValueChange = { loginPhone = it },
-                                    label = { Text(if (isArabic) "رقم الهاتف أو اسم المستخدم" else "Téléphone ou identifiant") },
-                                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = AmberAccent) },
+                                    label = { Text(if (isArabic) "البريد الإلكتروني" else "Adresse e-mail") },
+                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = AmberAccent) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .testTag("login_phone_input"),
@@ -423,8 +425,8 @@ fun AuthDialog(
                                 Button(
                                     onClick = {
                                         onLogin(
-                                            loginPhone.ifBlank { "0661234567" },
-                                            loginPassword.ifBlank { "123456" },
+                                            loginPhone,
+                                            loginPassword,
                                             loginRole
                                         )
                                     },

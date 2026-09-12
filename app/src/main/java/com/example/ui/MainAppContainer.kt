@@ -106,7 +106,7 @@ fun MainAppContainer(
             currentLanguage = currentLanguage,
             onDismiss = { viewModel.closeAuthDialog() },
             onLogin = { phone, pass, role -> viewModel.login(phone, pass, role) },
-            onRegister = { name, phone, wilaya, role -> viewModel.register(name, phone, wilaya, role) }
+            onRegister = { name, email, password, wilaya, role -> viewModel.register(name, email, password, wilaya, role) }
         )
     }
 

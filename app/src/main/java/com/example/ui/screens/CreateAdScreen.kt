@@ -1029,7 +1029,7 @@ fun Step7Contact(
                 value = formState.sellerPhone,
                 onValueChange = { phone -> onFormChange { it.copy(sellerPhone = phone) } },
                 label = { Text(if (isArabic) "رقم الهاتف للاتصال والواتساب (مطلوب) *" else "Numéro de téléphone *") },
-                placeholder = { Text("0661234567") },
+                placeholder = { Text("05/06/07...") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 shape = RoundedCornerShape(10.dp)

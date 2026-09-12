@@ -2,6 +2,7 @@ package com.example.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
 import com.example.data.AdStatus
 import com.example.data.AppLanguage
 import com.example.data.CategoryType
@@ -56,7 +57,7 @@ data class CreateAdFormState(
     val wilayaCode: String = "16",
     val commune: String = "",
     val condition: ItemCondition = ItemCondition.LIKE_NEW,
-    val sellerPhone: String = "0661234567",
+    val sellerPhone: String = "",
     val selectedImages: List<String> = emptyList(),
     val deliveryOption: DeliveryOption = DeliveryOption.ALL_69_WILAYAS,
     val paymentReference: String = "",
@@ -69,6 +70,7 @@ data class CreateAdFormState(
 class MarketplaceViewModel(
     private val repository: MarketplaceRepository = MarketplaceRepository()
 ) : ViewModel() {
+    private val auth = FirebaseAuth.getInstance()
 
     val currentUserRole: StateFlow<UserRole> = repository.currentUserRole
     val currentLanguage: StateFlow<AppLanguage> = repository.currentLanguage
@@ -90,7 +92,7 @@ class MarketplaceViewModel(
     private val _createAdForm = MutableStateFlow(CreateAdFormState())
     val createAdForm: StateFlow<CreateAdFormState> = _createAdForm.asStateFlow()
 
-    private val _activeChatListingId = MutableStateFlow<String?>("ad-1")
+    private val _activeChatListingId = MutableStateFlow<String?>(null)
     val activeChatListingId: StateFlow<String?> = _activeChatListingId.asStateFlow()
 
     // Live Visitors Counter ("عدد زوارنا الآن عدد زائر - بين 10000 و 30000 يتغير كل 5 ثواني صعودا ونزولا")
@@ -112,13 +114,7 @@ class MarketplaceViewModel(
 
     // User Account & Authentication ("عند فتح التطبيق تظهر لائحة بها التسجيل وتحتها الدخول")
     private val _userAccount = MutableStateFlow(
-        UserAccount(
-            id = "user-guest",
-            name = "زائر",
-            phone = "",
-            wilayaCode = "16",
-            isLoggedIn = false
-        )
+        UserAccount()
     )
     val userAccount: StateFlow<UserAccount> = _userAccount.asStateFlow()
 
@@ -134,15 +130,13 @@ class MarketplaceViewModel(
     }
 
     fun login(phoneOrEmail: String, password: String, role: UserRole = UserRole.SELLER) {
-        val name = if (role == UserRole.SELLER) "أمين قاسي" else "كريم منصوري"
-        val account = UserAccount(
-            id = if (role == UserRole.SELLER) "seller-amine" else "buyer-karim",
-            name = name,
-            phone = phoneOrEmail.ifBlank { "0661234567" },
-            wilayaCode = "16",
-            isLoggedIn = true
-        )
-        activateAccount(account, role)
+        val email = phoneOrEmail.trim()
+        if (!email.contains("@") || password.length < 6) return
+        auth.signInWithEmailAndPassword(email, password).addOnSuccessListener { result ->
+            val user = result.user ?: return@addOnSuccessListener
+            val account = UserAccount(id = user.uid, name = user.displayName.orEmpty(), phone = user.phoneNumber.orEmpty(), isLoggedIn = true)
+            activateAccount(account, role)
+        }
     }
 
     private fun activateAccount(account: UserAccount, role: UserRole) {
@@ -156,19 +150,20 @@ class MarketplaceViewModel(
         _showAuthDialog.value = account.isBlocked
     }
 
-    fun register(name: String, phone: String, wilayaCode: String, role: UserRole = UserRole.SELLER) {
-        val account = UserAccount(
-            id = "user-${System.currentTimeMillis() % 10000}",
-            name = name.ifBlank { "مستخدم جديد" },
-            phone = phone.ifBlank { "0661234567" },
-            wilayaCode = wilayaCode,
-            isLoggedIn = true
-        )
-        activateAccount(account, role)
+    fun register(name: String, email: String, password: String, wilayaCode: String, role: UserRole = UserRole.SELLER) {
+        val cleanName = name.trim()
+        val cleanEmail = email.trim()
+        if (cleanName.isBlank() || !cleanEmail.contains("@") || password.length < 6) return
+        auth.createUserWithEmailAndPassword(cleanEmail, password).addOnSuccessListener { result ->
+            val user = result.user ?: return@addOnSuccessListener
+            val account = UserAccount(id = user.uid, name = cleanName, phone = "", wilayaCode = wilayaCode, isLoggedIn = true)
+            activateAccount(account, role)
+        }
     }
 
     fun logout() {
-        _userAccount.value = UserAccount(isLoggedIn = false)
+        auth.signOut()
+        _userAccount.value = UserAccount()
         _showAuthDialog.value = true
     }
 

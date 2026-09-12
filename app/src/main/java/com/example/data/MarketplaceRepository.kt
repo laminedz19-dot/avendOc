@@ -1,5 +1,6 @@
 package com.example.data
 
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -8,17 +9,18 @@ import kotlinx.coroutines.flow.update
 class MarketplaceRepository {
 
     private val cloudService = FirebaseFirestoreService()
+    private val auth = FirebaseAuth.getInstance()
 
-    private val _listings = MutableStateFlow<List<ListingItem>>(SampleData.initialListings)
+    private val _listings = MutableStateFlow<List<ListingItem>>(emptyList())
     val listings: StateFlow<List<ListingItem>> = _listings.asStateFlow()
 
-    private val _offers = MutableStateFlow<List<NegotiationOffer>>(SampleData.initialOffers)
+    private val _offers = MutableStateFlow<List<NegotiationOffer>>(emptyList())
     val offers: StateFlow<List<NegotiationOffer>> = _offers.asStateFlow()
 
-    private val _chats = MutableStateFlow<List<ChatMessage>>(SampleData.initialChats)
+    private val _chats = MutableStateFlow<List<ChatMessage>>(emptyList())
     val chats: StateFlow<List<ChatMessage>> = _chats.asStateFlow()
 
-    private val _verifications = MutableStateFlow<List<PaymentVerificationRecord>>(SampleData.initialVerifications)
+    private val _verifications = MutableStateFlow<List<PaymentVerificationRecord>>(emptyList())
     val verifications: StateFlow<List<PaymentVerificationRecord>> = _verifications.asStateFlow()
 
     private val _platformSettings = MutableStateFlow(PlatformSettings())
@@ -30,19 +32,13 @@ class MarketplaceRepository {
     private val _currentLanguage = MutableStateFlow(AppLanguage.ARABIC)
     val currentLanguage: StateFlow<AppLanguage> = _currentLanguage.asStateFlow()
 
-    private val _favoriteIds = MutableStateFlow<Set<String>>(setOf("ad-1", "ad-2"))
+    private val _favoriteIds = MutableStateFlow<Set<String>>(emptySet())
     val favoriteIds: StateFlow<Set<String>> = _favoriteIds.asStateFlow()
 
     init {
         // Initialize Firebase Firestore cloud sync listener
         cloudService.initialize { remoteListings ->
-            if (remoteListings.isNotEmpty()) {
-                _listings.update { localList ->
-                    val remoteIds = remoteListings.map { it.id }.toSet()
-                    val remainingLocal = localList.filterNot { remoteIds.contains(it.id) }
-                    remoteListings + remainingLocal
-                }
-            }
+            _listings.value = remoteListings
         }
     }
 
@@ -95,6 +91,7 @@ class MarketplaceRepository {
         paymentRef: String = "",
         paymentDate: String = "",
     ): ListingItem {
+        val currentUser = auth.currentUser ?: error("يجب تسجيل الدخول قبل إنشاء إعلان")
         val wilaya = WilayasData.findWilayaByCode(wilayaCode)
         val wilayaNameAr = wilaya?.nameAr ?: "الجزائر"
         val wilayaNameFr = wilaya?.nameFr ?: "Alger"
@@ -115,13 +112,13 @@ class MarketplaceRepository {
             condition = condition,
             images = images,
             deliveryOption = deliveryOption,
-            sellerId = sellerId,
+            sellerId = currentUser.uid,
             sellerName = sellerName,
-            sellerPhone = sellerPhone.ifBlank { "0661234567" },
+            sellerPhone = sellerPhone,
             status = initialStatus,
             paymentReference = paymentRef,
             paymentDate = paymentDate,
-            createdAt = "الآن"
+            createdAt = ""
         )
 
         _listings.update { listOf(newAd) + it }
@@ -131,6 +128,7 @@ class MarketplaceRepository {
     }
 
     fun submitPaymentProof(listingId: String, referenceNumber: String, paymentDate: String) {
+        if (auth.currentUser == null) return
         _listings.update { list ->
             list.map { ad ->
                 if (ad.id == listingId) {
@@ -151,9 +149,9 @@ class MarketplaceRepository {
                 sellerName = ad.sellerName,
                 sellerPhone = ad.sellerPhone,
                 wilaya = "${ad.wilayaCode} - ${ad.wilayaNameAr}",
-                amountDzd = 200,
+                amountDzd = 300,
                 transactionRef = referenceNumber,
-                submittedAt = "الآن",
+                submittedAt = "",
                 status = AdStatus.PAYMENT_PENDING
             )
             _verifications.update { listOf(verification) + it.filterNot { it.listingId == listingId } }
@@ -201,17 +199,21 @@ class MarketplaceRepository {
         proposedPriceDzd: Long,
         message: String
     ) {
+        val currentUser = auth.currentUser ?: return
+        val listing = _listings.value.firstOrNull { it.id == listingId } ?: return
+        if (listing.sellerId == currentUser.uid) return
         val offer = NegotiationOffer(
             listingId = listingId,
+            sellerId = listing.sellerId,
             listingTitle = listingTitle,
-            buyerId = "buyer-karim",
-            buyerName = "كريم منصوري",
-            buyerPhone = "0559876543",
+            buyerId = currentUser.uid,
+            buyerName = currentUser.displayName.orEmpty(),
+            buyerPhone = currentUser.phoneNumber.orEmpty(),
             originalPriceDzd = originalPriceDzd,
             proposedPriceDzd = proposedPriceDzd,
             status = OfferStatus.PENDING,
             message = message,
-            timestamp = "الآن"
+            timestamp = ""
         )
         _offers.update { listOf(offer) + it }
         cloudService.syncOffer(offer)
@@ -241,13 +243,14 @@ class MarketplaceRepository {
     }
 
     fun sendChatMessage(listingId: String, text: String) {
-        val isSeller = _currentUserRole.value == UserRole.SELLER
+        val currentUser = auth.currentUser ?: return
+        if (text.isBlank()) return
         val msg = ChatMessage(
             listingId = listingId,
-            senderId = if (isSeller) "seller-amine" else "buyer-karim",
-            senderName = if (isSeller) "أمين قاسي" else "كريم منصوري",
+            senderId = currentUser.uid,
+            senderName = currentUser.displayName.orEmpty(),
             text = text,
-            timestamp = "الآن",
+            timestamp = "",
             isFromMe = true
         )
         _chats.update { it + msg }
@@ -255,6 +258,7 @@ class MarketplaceRepository {
     }
 
     fun markAsSold(listingId: String) {
+        if (auth.currentUser == null) return
         _listings.update { list ->
             list.map {
                 if (it.id == listingId) it.copy(status = AdStatus.SOLD) else it

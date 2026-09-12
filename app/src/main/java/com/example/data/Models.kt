@@ -78,15 +78,15 @@ data class ListingItem(
     val sellerId: String,
     val sellerName: String,
     val sellerPhone: String,
-    val isSellerVerified: Boolean = true,
+    val isSellerVerified: Boolean = false,
     val status: AdStatus = AdStatus.PAYMENT_REQUIRED,
     val paymentReference: String = "",
     val paymentDate: String = "",
     val paymentProofReceiptUrl: String = "",
     val images: List<String> = emptyList(),
     val deliveryOption: DeliveryOption = DeliveryOption.ALL_69_WILAYAS,
-    val createdAt: String = "اليوم",
-    val viewsCount: Int = 12,
+    val createdAt: String = "",
+    val viewsCount: Int = 0,
     val offersCount: Int = 0,
     val featuredTag: String? = null
 )
@@ -94,6 +94,7 @@ data class ListingItem(
 data class NegotiationOffer(
     val id: String = UUID.randomUUID().toString(),
     val listingId: String,
+    val sellerId: String = "",
     val listingTitle: String,
     val buyerId: String,
     val buyerName: String,
@@ -103,7 +104,7 @@ data class NegotiationOffer(
     val counterPriceDzd: Long? = null,
     val status: OfferStatus = OfferStatus.PENDING,
     val message: String = "",
-    val timestamp: String = "منذ قليل"
+    val timestamp: String = ""
 )
 
 data class ChatMessage(
@@ -112,7 +113,7 @@ data class ChatMessage(
     val senderId: String,
     val senderName: String,
     val text: String,
-    val timestamp: String = "الآن",
+    val timestamp: String = "",
     val isFromMe: Boolean = true
 )
 
@@ -123,11 +124,11 @@ data class PaymentVerificationRecord(
     val sellerName: String,
     val sellerPhone: String,
     val wilaya: String,
-    val amountDzd: Int = 200,
+    val amountDzd: Int = 300,
     val transactionRef: String,
     val paymentMethod: String = "BaridiMob / CCP",
-    val receiptImage: String = "receipt_sample",
-    val submittedAt: String = "اليوم 14:30",
+    val receiptImage: String = "",
+    val submittedAt: String = "",
     val status: AdStatus = AdStatus.PAYMENT_PENDING,
     val rejectReason: String? = null
 )
@@ -155,8 +156,8 @@ data class ReceiptVerificationResult(
 )
 
 data class UserAccount(
-    val id: String = "user-guest",
-    val name: String = "زائر",
+    val id: String = "",
+    val name: String = "",
     val phone: String = "",
     val wilayaCode: String = "16",
     val isLoggedIn: Boolean = false,
