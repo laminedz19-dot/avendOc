@@ -53,6 +53,24 @@ npx eas init
 
 بعد ذلك، كل push إلى `main` أو `master` يغيّر ملفات المشروع المناسب يشغّل بناء Android تلقائيًا بملف `preview` وينتظر رابط البناء في لوحة EAS. يمكن أيضًا تشغيل Workflow يدويًا من تبويب **Actions** واختيار `preview` أو `production`.
 
+## اختبار البناء محليًا قبل الرفع إلى GitHub
+
+استخدم السكريبت التالي لفحص TypeScript، وتجميع Metro، ثم تنفيذ بناء Android محلي عبر EAS CLI لكل مشروع:
+
+```bash
+chmod +x scripts/test-eas-build-local.sh
+./scripts/test-eas-build-local.sh
+```
+
+لاختبار تطبيق واحد أو Profile مختلف:
+
+```bash
+./scripts/test-eas-build-local.sh --project user --profile preview
+./scripts/test-eas-build-local.sh --project admin --profile production
+```
+
+ينتج السكريبت ملفات APK داخل `artifacts/eas-local/`. يجب تشغيل `npx eas init` مرة واحدة داخل كل مشروع أولًا، كما يجب توفر متطلبات EAS local build وتسجيل الدخول إلى Expo أو ضبط `EXPO_TOKEN`.
+
 ## Firebase
 
 المشروعان يستخدمان مشروع Firebase نفسه `achridz-2c628`. يجب أن تكون مصادقة Email/Password مفعّلة. يجب منح حساب الأدمن Custom Claim باسم `admin: true`؛ التطبيق لا يسمح بالدخول إلى لوحة الأدمن بدون هذه الصلاحية.
