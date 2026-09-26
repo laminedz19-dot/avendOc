@@ -33,6 +33,26 @@ npx eas build --platform android --profile preview
 
 ثم كرر الأوامر داخل `expo-admin`. يجب استخدام مشروعَي Expo مختلفين حتى يبقى لكل APK اسم ومعرّف مستقل.
 
+## البناء التلقائي عبر GitHub Actions
+
+يوجد Workflow مستقل لكل تطبيق:
+
+- `.github/workflows/expo-user-eas.yml`
+- `.github/workflows/expo-admin-eas.yml`
+
+أضف Secret واحدًا إلى إعدادات المستودع في GitHub باسم `EXPO_TOKEN`. يجب أن يكون هذا Token من حساب Expo الذي يملك مشروعي `avendoc-user` و`avendoc-admin`.
+
+قبل أول تشغيل للـ Workflow، نفّذ مرة واحدة داخل كل مشروع:
+
+```bash
+npx eas login
+npx eas init
+```
+
+ثم ادفع التغييرات التي يضيفها `eas init` إلى `app.json`، وخصوصًا `expo.extra.eas.projectId`. الـ Workflow يوقف التشغيل برسالة واضحة إذا لم يكن المشروع مربوطًا بـ EAS.
+
+بعد ذلك، كل push إلى `main` أو `master` يغيّر ملفات المشروع المناسب يشغّل بناء Android تلقائيًا بملف `preview` وينتظر رابط البناء في لوحة EAS. يمكن أيضًا تشغيل Workflow يدويًا من تبويب **Actions** واختيار `preview` أو `production`.
+
 ## Firebase
 
 المشروعان يستخدمان مشروع Firebase نفسه `achridz-2c628`. يجب أن تكون مصادقة Email/Password مفعّلة. يجب منح حساب الأدمن Custom Claim باسم `admin: true`؛ التطبيق لا يسمح بالدخول إلى لوحة الأدمن بدون هذه الصلاحية.
